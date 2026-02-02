@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Card Processing System</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Screen 1: Login / Role Selection Screen -->
+        <div id="loginScreen" class="screen active">
+            <div class="login-container">
+                <div class="login-header">
+                    <h1>💳 Credit Card Processing System</h1>
+                    <p>Educational Platform</p>
+                </div>
+                
+                <div class="login-content">
+                    <h2>Select Your Role</h2>
+                    <div class="role-selection">
+                        <button class="role-btn" data-role="customer">
+                            <span class="role-icon">👤</span>
+                            <span class="role-name">Customer</span>
+                        </button>
+                        <button class="role-btn" data-role="merchant">
+                            <span class="role-icon">🏪</span>
+                            <span class="role-name">Merchant</span>
+                        </button>
+                        <button class="role-btn" data-role="admin">
+                            <span class="role-icon">🏦</span>
+                            <span class="role-name">Admin / Bank Officer</span>
+                        </button>
+                    </div>
+
+                    <div class="login-form">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" placeholder="Enter username" required>
+                            <div class="help-text">Demo: customer1, merchant1, admin1</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" placeholder="Enter password" required>
+                            <div class="help-text">Demo: demo123</div>
+                        </div>
+
+                        <button id="loginBtn" class="btn btn-primary btn-block">Login</button>
+
+                        <div id="loginError" class="error-message"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Customer Dashboard -->
+        <div id="customerDashboard" class="screen">
+            <div class="dashboard-container">
+                <header class="dashboard-header">
+                    <div class="header-left">
+                        <h1>👤 Customer Dashboard</h1>
+                    </div>
+                    <div class="header-right">
+                        <span id="customerName" class="user-info"></span>
+                        <button class="btn btn-logout" id="logoutBtn">Logout</button>
+                    </div>
+                </header>
+
+                <div class="welcome-section">
+                    <div class="welcome-card">
+                        <h2>Welcome back, <span id="welcomeName"></span>!</h2>
+                        <p>Manage your credit card transactions easily and securely.</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-menu">
+                    <button class="menu-btn" data-screen="paymentScreen">
+                        <span class="btn-icon">💳</span>
+                        <span class="btn-text">Make Payment</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <button class="menu-btn" data-screen="transactionHistory">
+                        <span class="btn-icon">📜</span>
+                        <span class="btn-text">View Transaction History</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <button class="menu-btn" data-screen="cardDetails">
+                        <span class="btn-icon">🔍</span>
+                        <span class="btn-text">View Card Details</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Make Payment Screen -->
+        <div id="paymentScreen" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="backBtn">← Back</button>
+                    <h1>💳 Make Payment</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="payment-form">
+                    <div class="form-section">
+                        <h3>Card Information</h3>
+                        
+                        <div class="form-group">
+                            <label for="cardNumber">Card Number</label>
+                            <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                            <div class="help-text">Demo: 4532123456789012</div>
+                            <span class="validation-msg" id="cardNumberMsg"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cardholderName">Cardholder Name</label>
+                            <input type="text" id="cardholderName" placeholder="Victor" required>
+                            <span class="validation-msg" id="cardholderMsg"></span>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="expiryDate">Expiry Date</label>
+                                <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5" required>
+                                <span class="validation-msg" id="expiryMsg"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="cvv">CVV</label>
+                                <input type="password" id="cvv" placeholder="***" maxlength="4" required>
+                                <span class="validation-msg" id="cvvMsg"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Transaction Details</h3>
+                        
+                        <div class="form-group">
+                            <label for="amount">Transaction Amount ($)</label>
+                            <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01" required>
+                            <span class="validation-msg" id="amountMsg"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description (Optional)</label>
+                            <textarea id="description" placeholder="What is this payment for?" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button id="submitPaymentBtn" class="btn btn-primary">Pay Now</button>
+                        <button id="resetPaymentBtn" class="btn btn-secondary">Reset</button>
+                    </div>
+
+                    <div id="paymentError" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: Transaction Processing Status -->
+        <div id="processingScreen" class="screen">
+            <div class="processing-container">
+                <div class="processing-card">
+                    <div id="processingIndicator" class="processing-spinner"></div>
+                    <h2 id="processingTitle">Processing Your Payment...</h2>
+                    <p id="processingMessage"></p>
+
+                    <div id="resultContent" class="result-content hidden">
+                        <div id="resultIcon" class="result-icon"></div>
+                        <h2 id="resultTitle"></h2>
+                        <p id="resultMessage"></p>
+                        
+                        <div class="transaction-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Transaction ID:</span>
+                                <span class="detail-value" id="transactionId"></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Date & Time:</span>
+                                <span class="detail-value" id="transactionDateTime"></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Amount:</span>
+                                <span class="detail-value" id="resultAmount"></span>
+                            </div>
+                            <div id="declineReasonRow" class="detail-row hidden">
+                                <span class="detail-label">Reason:</span>
+                                <span class="detail-value" id="declineReason"></span>
+                            </div>
+                        </div>
+
+                        <button id="returnDashboardBtn" class="btn btn-primary btn-block">Return to Dashboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 5: Transaction History Screen (Customer) -->
+        <div id="transactionHistory" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="historyBackBtn">← Back</button>
+                    <h1>📜 Transaction History</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label for="filterStatus">Filter by Status:</label>
+                        <select id="filterStatus">
+                            <option value="">All Transactions</option>
+                            <option value="success">Success</option>
+                            <option value="failed">Failed</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterDate">From Date:</label>
+                        <input type="date" id="filterDate">
+                    </div>
+                    <button class="btn btn-secondary" id="resetFiltersBtn">Reset Filters</button>
+                </div>
+
+                <div class="transactions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTableBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noTransactionsMsg" class="empty-state">
+                    <p>No transactions found.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 6: Card Details (Customer) -->
+        <div id="cardDetails" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="cardDetailsBackBtn">← Back</button>
+                    <h1>🔍 Card Details</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="card-details-content">
+                    <div class="card-display">
+                        <div class="card-chip">💳</div>
+                        <div class="card-number" id="displayCardNumber">**** **** **** 9012</div>
+                        <div class="card-info">
+                            <div class="card-holder" id="displayCardHolder">Freddy</div>
+                            <div class="card-expiry" id="displayExpiry">12/25</div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h3>Account Details</h3>
+                        <div class="detail-item">
+                            <span class="detail-label">Card Status:</span>
+                            <span class="detail-value status-active">Active</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Credit Limit:</span>
+                            <span class="detail-value" id="creditLimit">$5,000.00</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Available Credit:</span>
+                            <span class="detail-value" id="availableCredit">$4,500.00</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Current Balance:</span>
+                            <span class="detail-value" id="currentBalance">$500.00</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Last Payment:</span>
+                            <span class="detail-value" id="lastPaymentDate">2026-01-25</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 6: Merchant Dashboard -->
+        <div id="merchantDashboard" class="screen">
+            <div class="dashboard-container">
+                <header class="dashboard-header">
+                    <div class="header-left">
+                        <h1>🏪 Merchant Dashboard</h1>
+                    </div>
+                    <div class="header-right">
+                        <span id="merchantName" class="user-info"></span>
+                        <button class="btn btn-logout" id="merchantLogoutBtn">Logout</button>
+                    </div>
+                </header>
+
+                <div class="welcome-section">
+                    <div class="welcome-card">
+                        <h2>Welcome, <span id="merchantWelcomeName"></span>!</h2>
+                        <p>Manage and track payment requests from your customers.</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-menu">
+                    <button class="menu-btn" data-screen="merchantInitiate">
+                        <span class="btn-icon">➕</span>
+                        <span class="btn-text">Initiate Payment Request</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <button class="menu-btn" data-screen="merchantTransactions">
+                        <span class="btn-icon">📋</span>
+                        <span class="btn-text">View Transactions</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 7: Merchant - Initiate Payment Request -->
+        <div id="merchantInitiate" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="merchantInitiateBackBtn">← Back</button>
+                    <h1>➕ Payment Request</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="payment-form">
+                    <div class="form-section">
+                        <h3>Customer Information</h3>
+                        
+                        <div class="form-group">
+                            <label for="merchantCustomerId">Customer ID</label>
+                            <input type="text" id="merchantCustomerId" placeholder="cust_001" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="merchantCustomerName">Customer Name</label>
+                            <input type="text" id="merchantCustomerName" placeholder="Brendan" required>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Transaction Details</h3>
+                        
+                        <div class="form-group">
+                            <label for="merchantAmount">Amount ($)</label>
+                            <input type="number" id="merchantAmount" placeholder="0.00" min="0.01" step="0.01" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="merchantDescription">Description</label>
+                            <textarea id="merchantDescription" placeholder="What is this payment for?" rows="3" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="merchantInvoiceId">Invoice ID (Optional)</label>
+                            <input type="text" id="merchantInvoiceId" placeholder="INV-2026-001">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button id="submitMerchantPaymentBtn" class="btn btn-primary">Send Request</button>
+                        <button id="resetMerchantPaymentBtn" class="btn btn-secondary">Reset</button>
+                    </div>
+
+                    <div id="merchantPaymentError" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 8: Merchant - View Transactions -->
+        <div id="merchantTransactions" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="merchantTransBackBtn">← Back</button>
+                    <h1>📋 Transaction Requests</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label for="merchantFilterStatus">Filter by Status:</label>
+                        <select id="merchantFilterStatus">
+                            <option value="">All Requests</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="merchantSearchId">Search by ID:</label>
+                        <input type="text" id="merchantSearchId" placeholder="Enter transaction ID">
+                    </div>
+                    <button class="btn btn-secondary" id="merchantResetFiltersBtn">Reset Filters</button>
+                </div>
+
+                <div class="transactions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Request ID</th>
+                                <th>Customer ID</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="merchantTransTableBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noMerchantTransMsg" class="empty-state">
+                    <p>No transactions found.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 9: Admin Dashboard -->
+        <div id="adminDashboard" class="screen">
+            <div class="dashboard-container">
+                <header class="dashboard-header">
+                    <div class="header-left">
+                        <h1>🏦 Admin Dashboard</h1>
+                    </div>
+                    <div class="header-right">
+                        <span id="adminName" class="user-info"></span>
+                        <button class="btn btn-logout" id="adminLogoutBtn">Logout</button>
+                    </div>
+                </header>
+
+                <div class="admin-summary">
+                    <div class="summary-card">
+                        <div class="summary-icon">📊</div>
+                        <div class="summary-content">
+                            <div class="summary-label">Total Transactions</div>
+                            <div class="summary-value" id="totalTransCount">1,234</div>
+                        </div>
+                    </div>
+                    <div class="summary-card success">
+                        <div class="summary-icon">✓</div>
+                        <div class="summary-content">
+                            <div class="summary-label">Successful</div>
+                            <div class="summary-value" id="successTransCount">1,150</div>
+                        </div>
+                    </div>
+                    <div class="summary-card failed">
+                        <div class="summary-icon">✗</div>
+                        <div class="summary-content">
+                            <div class="summary-label">Failed</div>
+                            <div class="summary-value" id="failedTransCount">84</div>
+                        </div>
+                    </div>
+                    <div class="summary-card pending">
+                        <div class="summary-icon">⏳</div>
+                        <div class="summary-content">
+                            <div class="summary-label">Pending</div>
+                            <div class="summary-value" id="pendingTransCount">23</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-menu">
+                    <button class="menu-btn" data-screen="adminAllTransactions">
+                        <span class="btn-icon">📜</span>
+                        <span class="btn-text">View All Transactions</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <button class="menu-btn" data-screen="cardManagement">
+                        <span class="btn-icon">💳</span>
+                        <span class="btn-text">Manage Credit Cards</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <button class="menu-btn" data-screen="reportsScreen">
+                        <span class="btn-icon">📊</span>
+                        <span class="btn-text">Reports & Logs</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 10: Admin - View All Transactions -->
+        <div id="adminAllTransactions" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="adminTransBackBtn">← Back</button>
+                    <h1>📜 All Transactions</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label for="adminFilterStatus">Filter by Status:</label>
+                        <select id="adminFilterStatus">
+                            <option value="">All Transactions</option>
+                            <option value="success">Success</option>
+                            <option value="failed">Failed</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="adminFilterDate">From Date:</label>
+                        <input type="date" id="adminFilterDate">
+                    </div>
+                    <button class="btn btn-secondary" id="adminResetFiltersBtn">Reset Filters</button>
+                </div>
+
+                <div class="transactions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Customer</th>
+                                <th>Merchant</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTransTableBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noAdminTransMsg" class="empty-state">
+                    <p>No transactions found.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 11: Admin - Card Management -->
+        <div id="cardManagement" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="cardMgmtBackBtn">← Back</button>
+                    <h1>💳 Card Management</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label for="cardFilterStatus">Filter by Status:</label>
+                        <select id="cardFilterStatus">
+                            <option value="">All Cards</option>
+                            <option value="active">Active</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="expired">Expired</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="cardSearchCustomer">Search Customer ID:</label>
+                        <input type="text" id="cardSearchCustomer" placeholder="cust_001">
+                    </div>
+                    <button class="btn btn-secondary" id="cardResetFiltersBtn">Reset Filters</button>
+                </div>
+
+                <div class="cards-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Customer ID</th>
+                                <th>Card Number</th>
+                                <th>Cardholder</th>
+                                <th>Status</th>
+                                <th>Credit Limit</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cardsTableBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noCardsMsg" class="empty-state">
+                    <p>No cards found.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 12: Admin - Card Actions Modal -->
+        <div id="cardActionModal" class="modal hidden">
+            <div class="modal-content">
+                <header class="modal-header">
+                    <h2 id="cardActionTitle">Card Actions</h2>
+                    <button class="btn btn-close" id="closeCardActionModal">✕</button>
+                </header>
+
+                <div class="modal-body">
+                    <div class="card-action-details">
+                        <p><strong>Customer ID:</strong> <span id="modalCustomerId"></span></p>
+                        <p><strong>Card Number:</strong> <span id="modalCardNumber"></span></p>
+                        <p><strong>Status:</strong> <span id="modalCardStatus"></span></p>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button id="blockCardBtn" class="btn btn-danger">Block Card</button>
+                        <button id="unblockCardBtn" class="btn btn-success hidden">Unblock Card</button>
+                        <button id="updateLimitBtn" class="btn btn-primary">Update Credit Limit</button>
+                    </div>
+
+                    <div id="updateLimitForm" class="form-section hidden">
+                        <h3>Update Credit Limit</h3>
+                        <div class="form-group">
+                            <label for="newCreditLimit">New Credit Limit ($)</label>
+                            <input type="number" id="newCreditLimit" placeholder="5000.00" min="100" step="0.01">
+                        </div>
+                        <button id="confirmLimitUpdateBtn" class="btn btn-primary">Confirm Update</button>
+                        <button id="cancelLimitUpdateBtn" class="btn btn-secondary">Cancel</button>
+                    </div>
+
+                    <div id="cardActionMessage" class="success-message hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 13: Admin - Reports & Logs -->
+        <div id="reportsScreen" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="reportsBackBtn">← Back</button>
+                    <h1>📊 Reports & Logs</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="reports-content">
+                    <div class="report-section">
+                        <h3>Transaction Report</h3>
+                        <div class="filters-section">
+                            <div class="filter-group">
+                                <label for="reportStartDate">Start Date:</label>
+                                <input type="date" id="reportStartDate">
+                            </div>
+                            <div class="filter-group">
+                                <label for="reportEndDate">End Date:</label>
+                                <input type="date" id="reportEndDate">
+                            </div>
+                            <button class="btn btn-secondary" id="generateReportBtn">Generate Report</button>
+                            <button class="btn btn-secondary" id="downloadReportBtn">Download CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h3>Failed Transactions Log</h3>
+                        <div class="transactions-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Transaction ID</th>
+                                        <th>Customer</th>
+                                        <th>Amount</th>
+                                        <th>Failure Reason</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="failedLogsTableBody">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noFailedLogsMsg" class="empty-state">
+                            <p>No failed transactions found.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmationModal" class="modal hidden">
+            <div class="modal-content modal-small">
+                <div class="modal-body">
+                    <h3 id="confirmationTitle"></h3>
+                    <p id="confirmationMessage"></p>
+                    <div class="modal-actions">
+                        <button id="confirmBtn" class="btn btn-primary">Confirm</button>
+                        <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success/Error Alert -->
+        <div id="alertBox" class="alert-box hidden">
+            <div class="alert-content">
+                <span id="alertMessage"></span>
+                <button class="btn-close" id="closeAlertBtn">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
