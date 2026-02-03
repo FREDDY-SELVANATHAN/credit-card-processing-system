@@ -47,6 +47,10 @@
                                 <span class="role-icon">🏪</span>
                                 <span class="role-name">Merchant</span>
                             </button>
+                            <button class="role-btn" data-role="admin">
+                                <span class="role-icon">⚙️</span>
+                                <span class="role-name">Admin</span>
+                            </button>
                         </div>
 
                         <div class="login-form">
@@ -72,11 +76,6 @@
                     <div class="login-content">
                         <h2>Create New Account</h2>
                         
-                        <!-- Google Sign-Up Option -->
-                        <div id="firebaseUIContainerRegister" class="firebase-signin-container"></div>
-
-                        <div class="divider">OR</div>
-
                         <div class="role-selection">
                             <button class="role-btn register-role" data-role="customer">
                                 <span class="role-icon">👤</span>
@@ -85,6 +84,10 @@
                             <button class="role-btn register-role" data-role="merchant">
                                 <span class="role-icon">🏪</span>
                                 <span class="role-name">Merchant</span>
+                            </button>
+                            <button class="role-btn register-role" data-role="admin">
+                                <span class="role-icon">⚙️</span>
+                                <span class="role-name">Admin</span>
                             </button>
                         </div>
 
@@ -122,6 +125,11 @@
                             <div id="registerError" class="error-message"></div>
                             <div id="registerSuccess" class="success-message"></div>
                         </div>
+
+                        <div class="divider">OR</div>
+
+                        <!-- Google Sign-Up Option -->
+                        <div id="firebaseUIContainerRegister" class="firebase-signin-container"></div>
                     </div>
                 </div>
             </div>
@@ -777,6 +785,40 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Firebase Configuration and Initialization -->
+    <script src="config.js"></script>
+    
+    <!-- State Management and Demo Data -->
+    <script src="state.js"></script>
+    
+    <!-- Firebase Database Functions -->
+    <script src="database.js"></script>
+    
+    <!-- Validation Functions -->
+    <script src="validation.js"></script>
+    
+    <!-- Authentication and Authorization -->
+    <script src="auth.js"></script>
+    
+    <!-- UI Navigation and Management -->
+    <script src="ui.js"></script>
+    
+    <!-- Payment Processing -->
+    <script src="payment.js"></script>
+    
+    <!-- Merchant Functionality -->
+    <script src="merchant.js"></script>
+    
+    <!-- Dashboard Updates -->
+    <script src="dashboard.js"></script>
+    
+    <!-- Transaction History and Tables -->
+    <script src="transactions.js"></script>
+    
+    <!-- Admin Features (Card Management & Reports) -->
+    <script src="admin.js"></script>
+    
+    <!-- Application Initialization -->
+    <script src="main.js"></script>
 </body>
 </html>
