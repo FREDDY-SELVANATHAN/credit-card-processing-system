@@ -465,22 +465,31 @@ function initializeGoogleSignIn() {
         const uiConfig = {
             signInSuccessUrl: '#',
             signInOptions: [
-                firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-                firebase.auth.EmailAuthProvider.PROVIDER_ID
+                firebase.auth.GoogleAuthProvider.PROVIDER_ID
             ],
             callbacks: {
                 signInSuccessWithAuthResult: function(authResult, redirectUrl) {
                     const user = authResult.user;
+                    const isNewUser = authResult.additionalUserInfo.isNewUser;
+                    
                     console.log('Sign-in successful:', user.email);
-                    promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
+                    console.log('Is new user:', isNewUser);
+                    
+                    // Auto-register if new user
+                    if (isNewUser) {
+                        promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
+                    } else {
+                        // Existing user - fetch their role from database
+                        fetchUserRole(user.uid);
+                    }
                     return false;
                 },
                 uiShown: function() {
-                    // UI is shown
                     console.log('FirebaseUI is shown');
                 }
             },
-            signInFlow: 'popup'
+            signInFlow: 'popup',
+            credentialHelper: firebaseui.auth.CredentialHelper.GOOGLE_YOLO
         };
 
         // Start the UI
@@ -491,6 +500,32 @@ function initializeGoogleSignIn() {
     } catch (error) {
         console.error('Error initializing FirebaseUI:', error);
         setTimeout(initializeGoogleSignIn, 2000);
+    }
+}
+
+/**
+ * Fetch user role from database
+ */
+async function fetchUserRole(userID) {
+    if (!db) {
+        console.error('Firebase not initialized');
+        loginSuccess(userID, 'customer');
+        return;
+    }
+
+    try {
+        const snapshot = await db.ref(`users/${userID}`).get();
+        if (snapshot.exists()) {
+            const userData = snapshot.val();
+            console.log('User found:', userData);
+            loginSuccess(userData.name, userData.role);
+        } else {
+            // Shouldn't happen, but fallback to default
+            loginSuccess(userID, 'customer');
+        }
+    } catch (error) {
+        console.error('Error fetching user role:', error);
+        loginSuccess(userID, 'customer');
     }
 }
 
