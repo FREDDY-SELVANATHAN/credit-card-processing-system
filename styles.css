@@ -591,12 +591,7 @@ body {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     border-color: var(--color-primary);
 }
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    transition: var(--transition);
-    text-align: left;
-}
+
 
 .menu-btn:hover {
     border-color: var(--color-primary);
