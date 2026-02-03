@@ -179,9 +179,9 @@ function togglePasswordVisibility(inputId) {
     
     if (input.type === 'password') {
         input.type = 'text';
-        toggleIcon.textContent = '🙈'; // Monkey covering eyes (or closed eye if preferred)
+        toggleIcon.textContent = '🔒'; 
     } else {
         input.type = 'password';
-        toggleIcon.textContent = '👁️'; // Eye
+        toggleIcon.textContent = '🔓';
     }
 }
