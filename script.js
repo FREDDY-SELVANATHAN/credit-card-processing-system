@@ -13,6 +13,7 @@ const firebaseConfig = {
 // Initialize Firebase
 let db;
 let auth;
+let firebaseUI = null; // Global FirebaseUI instance
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
@@ -437,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Initialize Google Sign-In with Firebase UI
+ * Initialize Google Sign-In with Firebase UI for both Login and Register
  */
 function initializeGoogleSignIn() {
     if (!auth) {
@@ -449,17 +450,14 @@ function initializeGoogleSignIn() {
     try {
         // Check if firebaseui exists
         if (typeof firebaseui === 'undefined') {
-            console.warn('FirebaseUI not loaded yet');
+            console.warn('FirebaseUI library not loaded yet');
             setTimeout(initializeGoogleSignIn, 1000);
             return;
         }
 
-        // Create or get FirebaseUI instance
-        let ui;
-        if (firebaseui.auth.AuthUI.getInstance()) {
-            ui = firebaseui.auth.AuthUI.getInstance();
-        } else {
-            ui = new firebaseui.auth.AuthUI(auth);
+        // Create only ONE instance
+        if (!firebaseUI) {
+            firebaseUI = new firebaseui.auth.AuthUI(auth);
         }
 
         const uiConfig = {
@@ -472,25 +470,77 @@ function initializeGoogleSignIn() {
                 signInSuccessWithAuthResult: function(authResult, redirectUrl) {
                     const user = authResult.user;
                     console.log('Sign-in successful:', user.email);
-                    promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
+                    handleAuthResult(user, authResult.additionalUserInfo?.isNewUser);
                     return false;
                 },
                 uiShown: function() {
-                    // UI is shown
                     console.log('FirebaseUI is shown');
                 }
             },
             signInFlow: 'popup'
         };
 
-        // Start the UI
-        const container = document.getElementById('firebaseUIContainer');
-        if (container) {
-            ui.start('#firebaseUIContainer', uiConfig);
+        // Initialize on Login page
+        const loginContainer = document.getElementById('firebaseUIContainer');
+        if (loginContainer) {
+            firebaseUI.start('#firebaseUIContainer', uiConfig);
+            console.log('FirebaseUI initialized on Login page');
         }
+
+        // Initialize on Register page
+        const registerContainer = document.getElementById('firebaseUIContainerRegister');
+        if (registerContainer) {
+            // Render in register container too (same instance)
+            firebaseUI.start('#firebaseUIContainerRegister', uiConfig);
+            console.log('FirebaseUI initialized on Register page');
+        }
+
     } catch (error) {
         console.error('Error initializing FirebaseUI:', error);
+        // Only retry if it's a timing issue, not if instance already exists
+        if (error.message && error.message.includes('already exists')) {
+            console.log('FirebaseUI instance already exists, skipping retry');
+            return;
+        }
         setTimeout(initializeGoogleSignIn, 2000);
+    }
+}
+
+/**
+ * Handle authentication result - checks if user exists or is new
+ */
+async function handleAuthResult(user, isNewUser) {
+    try {
+        // Check if user already exists in database
+        const userSnapshot = await db.ref(`users/${user.uid}`).get();
+        const userExists = userSnapshot.exists();
+
+        if (userExists) {
+            // User already registered - sign them in
+            const existingUser = userSnapshot.val();
+            console.log('User already registered, signing in:', user.email);
+            state.currentUser = existingUser;
+            state.currentRole = existingUser.role;
+            
+            // Update last login
+            await db.ref(`users/${user.uid}`).update({
+                lastLogin: new Date().toISOString()
+            });
+            
+            // Remove role selection modal
+            const modal = document.querySelector('.role-selection-modal');
+            if (modal) modal.remove();
+            
+            // Navigate to appropriate dashboard
+            loginSuccess(existingUser.name, existingUser.role);
+        } else {
+            // New user - prompt for role selection
+            console.log('New user, prompting for role:', user.email);
+            promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
+        }
+    } catch (error) {
+        console.error('Error checking user:', error);
+        showError('Error processing sign-in: ' + error.message, document.getElementById('loginError'));
     }
 }
 
@@ -685,44 +735,56 @@ async function handleLogin() {
         return;
     }
 
-    // Check demo users first
-    const demoUser = demoUsers[role];
-    if (username === demoUser.username && password === demoUser.password) {
-        state.currentUser = { ...demoUser, role };
-        
-        // Save login to Firebase
-        saveUser(demoUser.id, {
-            ...demoUser,
-            role,
-            lastLogin: new Date().toISOString()
-        });
-        
-        // Clear form
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
-        
-        // Navigate to appropriate dashboard
-        loginSuccess(demoUser.name, role);
-        return;
-    }
+    try {
+        // Check demo users first (for demo purposes)
+        const demoUser = demoUsers[role];
+        if (username === demoUser.username && password === demoUser.password) {
+            state.currentUser = { ...demoUser, role };
+            
+            // Save login to Firebase
+            saveUser(demoUser.id, {
+                ...demoUser,
+                role,
+                lastLogin: new Date().toISOString()
+            });
+            
+            // Clear form
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            
+            // Navigate to appropriate dashboard
+            loginSuccess(demoUser.name, role);
+            return;
+        }
 
-    // Check Firebase for registered users
-    if (db) {
-        try {
-            const snapshot = await db.ref('users').orderByChild('username').equalTo(username).get();
+        // Check Firebase for registered users
+        if (db) {
+            // Query by username
+            const usersRef = db.ref('users');
+            const snapshot = await usersRef.orderByChild('username').equalTo(username).get();
+            
             if (snapshot.exists()) {
-                let user = null;
+                let foundUser = null;
+                let userId = null;
+
                 snapshot.forEach(child => {
-                    user = child.val();
+                    foundUser = child.val();
+                    userId = child.key;
                 });
 
-                // Verify password and role match
-                if (user && user.password === password && user.role === role) {
-                    state.currentUser = user;
+                // Check if role matches first
+                if (foundUser && foundUser.role !== role) {
+                    showError(`This account is registered as a ${foundUser.role}. Please select the correct role to login.`, errorDiv);
+                    return;
+                }
+
+                // Verify password matches
+                if (foundUser && foundUser.password === password) {
+                    state.currentUser = { ...foundUser, id: userId };
+                    state.currentRole = role;
                     
-                    // Update last login
-                    saveUser(user.id, {
-                        ...user,
+                    // Update last login in Firebase
+                    await db.ref(`users/${userId}`).update({
                         lastLogin: new Date().toISOString()
                     });
                     
@@ -730,18 +792,30 @@ async function handleLogin() {
                     document.getElementById('username').value = '';
                     document.getElementById('password').value = '';
                     
+                    console.log('User logged in successfully:', username);
+                    
                     // Navigate to appropriate dashboard
-                    loginSuccess(user.name, role);
+                    loginSuccess(foundUser.name, role);
+                    return;
+                } else {
+                    // Username exists but password is wrong
+                    showError('❌ Incorrect password. Please try again.', errorDiv);
                     return;
                 }
+            } else {
+                // Username doesn't exist - suggest registration
+                const errorMessage = `<div>❌ Username "<strong>${username}</strong>" not found.</div><div style="margin-top: 10px; font-size: 0.9em;">Don't have an account? <strong>Click "Register"</strong> tab to create one.</div>`;
+                errorDiv.innerHTML = errorMessage;
+                errorDiv.classList.add('show');
+                return;
             }
-        } catch (error) {
-            console.warn('Firebase login check failed:', error);
+        } else {
+            showError('Database connection failed', errorDiv);
         }
+    } catch (error) {
+        console.error('Login error:', error);
+        showError('Login failed: ' + error.message, errorDiv);
     }
-
-    // If we get here, login failed
-    showError('Invalid username or password', errorDiv);
 }
 
 /**
@@ -799,6 +873,21 @@ async function handleRegistration() {
         return;
     }
 
+    // Check if username already exists
+    if (db) {
+        try {
+            const snapshot = await db.ref('users').orderByChild('username').equalTo(username).get();
+            if (snapshot.exists()) {
+                const errorMessage = `<div>❌ Username "<strong>${username}</strong>" already exists.</div><div style="margin-top: 10px; font-size: 0.9em;">Already have an account? <strong>Click "Login"</strong> tab to sign in.</div>`;
+                errorDiv.innerHTML = errorMessage;
+                errorDiv.classList.add('show');
+                return;
+            }
+        } catch (error) {
+            console.warn('Error checking username:', error);
+        }
+    }
+
     // Validate password
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
@@ -812,43 +901,52 @@ async function handleRegistration() {
         return;
     }
 
-    // Register user
-    const result = await registerUser(fullName, username, password, role);
-    
-    if (result.success) {
-        // Show success message
-        successDiv.textContent = result.message;
-        successDiv.classList.add('show');
+    try {
+        // Create new user object
+        const userId = `${role}_${Date.now()}`;
+        const newUser = {
+            id: userId,
+            username: username,
+            password: password, // Note: In production, use bcrypt or similar for hashing
+            name: fullName,
+            role: role,
+            authMethod: 'email',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+        };
 
-        // Clear form
-        document.getElementById('registerFullName').value = '';
-        document.getElementById('registerUsername').value = '';
-        document.getElementById('registerPassword').value = '';
-        document.getElementById('registerConfirmPassword').value = '';
+        // Save to Firebase
+        if (db) {
+            await db.ref(`users/${userId}`).set(newUser);
+            console.log('User registered successfully:', userId);
 
-        // Update password requirements display
-        updatePasswordRequirements('');
+            // Show success message
+            successDiv.textContent = 'Account created successfully! Logging in...';
+            successDiv.classList.add('show');
 
-        // Auto-login the user
-        setTimeout(() => {
-            state.currentUser = { 
-                ...result.userData,
-                id: result.userId
-            };
-            
-            // Navigate to dashboard
-            if (role === 'customer') {
-                document.getElementById('welcomeName').textContent = fullName;
-                document.getElementById('customerName').textContent = fullName;
-                showScreen('customerDashboard');
-            } else if (role === 'merchant') {
-                document.getElementById('merchantWelcomeName').textContent = fullName;
-                document.getElementById('merchantName').textContent = fullName;
-                showScreen('merchantDashboard');
-            }
-        }, 1500);
-    } else {
-        showError(result.message, errorDiv);
+            // Clear form
+            document.getElementById('registerFullName').value = '';
+            document.getElementById('registerUsername').value = '';
+            document.getElementById('registerPassword').value = '';
+            document.getElementById('registerConfirmPassword').value = '';
+
+            // Update password requirements display
+            updatePasswordRequirements('');
+
+            // Auto-login the user
+            setTimeout(() => {
+                state.currentUser = newUser;
+                state.currentRole = role;
+                
+                // Navigate to dashboard
+                loginSuccess(fullName, role);
+            }, 1500);
+        } else {
+            showError('Database connection failed', errorDiv);
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        showError('Registration failed: ' + error.message, errorDiv);
     }
 }
 
@@ -909,6 +1007,21 @@ function logout() {
     if (auth) {
         auth.signOut().then(() => {
             console.log('User signed out from Firebase');
+            
+            // Clear Firebase UI and reinitialize
+            if (firebaseUI) {
+                try {
+                    firebaseUI.reset();
+                    console.log('FirebaseUI reset');
+                } catch (error) {
+                    console.warn('Error resetting FirebaseUI:', error);
+                }
+            }
+            
+            // Reinitialize Google Sign-In
+            setTimeout(() => {
+                initializeGoogleSignIn();
+            }, 500);
         }).catch((error) => {
             console.error('Sign out error:', error);
         });
