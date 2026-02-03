@@ -772,6 +772,16 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
  */
 function promptForRole(userID, userName, userEmail, password = null, userData = null) {
     const username = userData?.username || '';
+    
+    // Store the data globally so we can access it safely
+    window.googleAuthData = {
+        userID: userID,
+        userName: userName,
+        userEmail: userEmail,
+        password: password,
+        username: username
+    };
+    
     const roleSelection = document.createElement('div');
     roleSelection.className = 'role-selection-modal';
     roleSelection.innerHTML = `
@@ -780,11 +790,11 @@ function promptForRole(userID, userName, userEmail, password = null, userData = 
                 <h3>Select Your Role</h3>
                 <p>Choose your role in the Credit Card Processing System</p>
                 <div class="role-selection" style="margin-bottom: 20px;">
-                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'customer', '${password || ''}', '${username}')">
+                    <button class="role-btn" onclick="completeGoogleLogin('customer')">
                         <span class="role-icon">👤</span>
                         <span class="role-name">Customer</span>
                     </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'merchant', '${password || ''}', '${username}')">
+                    <button class="role-btn" onclick="completeGoogleLogin('merchant')">
                         <span class="role-icon">🏪</span>
                         <span class="role-name">Merchant</span>
                     </button>
@@ -798,7 +808,16 @@ function promptForRole(userID, userName, userEmail, password = null, userData = 
 /**
  * Complete Google Login after role selection
  */
-async function completeGoogleLogin(userID, userName, userEmail, role, password = null, username = null) {
+async function completeGoogleLogin(role) {
+    // Get data from global storage
+    const data = window.googleAuthData;
+    if (!data) {
+        console.error('No auth data found');
+        return;
+    }
+
+    const { userID, userName, userEmail, password, username } = data;
+    
     // Save user info to Firebase
     const userData = {
         id: userID,
@@ -813,16 +832,18 @@ async function completeGoogleLogin(userID, userName, userEmail, role, password =
     // Add password if it was provided (from Google password creation)
     if (password) {
         userData.password = password;
+        console.log('Saved password for Google user');
     }
 
     // Add username if it was provided (from Google password creation)
     if (username) {
         userData.username = username;
+        console.log('Saved username for Google user:', username);
     }
 
     try {
         await db.ref(`users/${userID}`).set(userData);
-        console.log('User profile saved:', userID);
+        console.log('User profile saved to Firebase:', {userID, username, role});
     } catch (error) {
         console.warn('Could not save user to database:', error);
     }
@@ -834,6 +855,9 @@ async function completeGoogleLogin(userID, userName, userEmail, role, password =
     // Remove role selection modal
     const modal = document.querySelector('.role-selection-modal');
     if (modal) modal.remove();
+
+    // Clear global data
+    delete window.googleAuthData;
 
     // Navigate to appropriate dashboard
     loginSuccess(userName, role);
