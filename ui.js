@@ -179,9 +179,11 @@ function togglePasswordVisibility(inputId) {
     
     if (input.type === 'password') {
         input.type = 'text';
-        toggleIcon.textContent = '🔒'; 
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
     } else {
         input.type = 'password';
-        toggleIcon.textContent = '🔓';
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
     }
 }
