@@ -169,3 +169,19 @@ function confirmAction(title, message, callback) {
 function setupAlerts() {
     // Alert setup already handled above
 }
+
+/**
+ * Toggle password visibility
+ */
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const toggleIcon = input.nextElementSibling;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        toggleIcon.textContent = '🙈'; // Monkey covering eyes (or closed eye if preferred)
+    } else {
+        input.type = 'password';
+        toggleIcon.textContent = '👁️'; // Eye
+    }
+}
