@@ -147,6 +147,10 @@ body {
     margin-bottom: 20px;
     text-align: center;
     color: var(--color-dark);
+    font-weight: 600;
+    display: block;
+    visibility: visible;
+    opacity: 1;
 }
 
 .login-content h3 {

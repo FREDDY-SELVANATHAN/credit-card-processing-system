@@ -516,25 +516,12 @@ async function handleAuthResult(user, isNewUser) {
         const userExists = userSnapshot.exists();
 
         if (userExists) {
-            // User already registered - sign them in
+            // User already registered - ask for password to verify
             const existingUser = userSnapshot.val();
-            console.log('User already registered, signing in:', user.email);
-            state.currentUser = existingUser;
-            state.currentRole = existingUser.role;
-            
-            // Update last login
-            await db.ref(`users/${user.uid}`).update({
-                lastLogin: new Date().toISOString()
-            });
-            
-            // Remove role selection modal
-            const modal = document.querySelector('.role-selection-modal');
-            if (modal) modal.remove();
-            
-            // Navigate to appropriate dashboard
-            loginSuccess(existingUser.name, existingUser.role);
+            console.log('User already registered, asking for password:', user.email);
+            promptForGooglePassword(user.uid, existingUser.name, user.email, 'existing');
         } else {
-            // New user - prompt for role selection
+            // New user - prompt for role selection first, then password
             console.log('New user, prompting for role:', user.email);
             promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
         }
@@ -545,9 +532,198 @@ async function handleAuthResult(user, isNewUser) {
 }
 
 /**
+ * Prompt user to create password for Google account
+ */
+function promptForGooglePassword(userID, userName, userEmail, userType = 'new') {
+    const modal = document.createElement('div');
+    modal.className = 'role-selection-modal';
+    modal.innerHTML = `
+        <div class="modal-overlay">
+            <div class="modal-content" style="max-width: 500px;">
+                <h3>${userType === 'existing' ? 'Sign In to Your Account' : 'Create App Password'}</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    ${userType === 'existing' 
+                        ? `Welcome back, <strong>${userName}</strong>!<br><br>Enter your app password to continue.` 
+                        : `Create a password for this app<br><strong>${userEmail}</strong>`}
+                </p>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="googlePassword">Password</label>
+                    <input type="password" id="googlePassword" placeholder="${userType === 'existing' ? 'Enter your app password' : 'Min 8 chars, 1 number, 1 special char'}" required autofocus style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                    <div id="passwordError" style="color: #dc3545; font-size: 0.9em; margin-top: 10px; display: none;"></div>
+                </div>
+                ${userType === 'new' ? `
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="googleConfirmPassword">Confirm Password</label>
+                    <input type="password" id="googleConfirmPassword" placeholder="Re-enter your password" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                    <div id="confirmError" style="color: #dc3545; font-size: 0.9em; margin-top: 10px; display: none;"></div>
+                </div>
+                <div class="password-requirements" style="margin-bottom: 20px; font-size: 0.9em;">
+                    <div class="req-item" id="req-length-google">✗ At least 8 characters</div>
+                    <div class="req-item" id="req-number-google">✗ At least one number (0-9)</div>
+                    <div class="req-item" id="req-special-google">✗ At least one special character (!@#$%^&*)</div>
+                </div>
+                ` : ''}
+                <button onclick="completeGoogleAuthWithPassword('${userID}', '${userName}', '${userEmail}', '${userType}')" class="btn btn-primary btn-block" style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                    ${userType === 'existing' ? 'Sign In' : 'Create Account'}
+                </button>
+                <button onclick="document.querySelector('.role-selection-modal').remove()" class="btn" style="padding: 10px; margin-top: 10px; background: #f8f9fa; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600;">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add password validation listener for new users
+    if (userType === 'new') {
+        document.getElementById('googlePassword').addEventListener('input', (e) => {
+            updateGooglePasswordRequirements(e.target.value);
+        });
+    }
+}
+
+/**
+ * Update password requirements display for Google signup
+ */
+function updateGooglePasswordRequirements(password) {
+    const validation = validatePassword(password);
+    
+    const lengthReq = document.getElementById('req-length-google');
+    const numberReq = document.getElementById('req-number-google');
+    const specialReq = document.getElementById('req-special-google');
+
+    if (lengthReq) {
+        if (validation.length) {
+            lengthReq.classList.add('met');
+        } else {
+            lengthReq.classList.remove('met');
+        }
+    }
+
+    if (numberReq) {
+        if (validation.number) {
+            numberReq.classList.add('met');
+        } else {
+            numberReq.classList.remove('met');
+        }
+    }
+
+    if (specialReq) {
+        if (validation.special) {
+            specialReq.classList.add('met');
+        } else {
+            specialReq.classList.remove('met');
+        }
+    }
+}
+
+/**
+ * Complete Google authentication with password
+ */
+async function completeGoogleAuthWithPassword(userID, userName, userEmail, userType) {
+    const passwordInput = document.getElementById('googlePassword');
+    const password = passwordInput?.value || '';
+    const passwordError = document.getElementById('passwordError');
+    const confirmError = document.getElementById('confirmError');
+    
+    // Clear errors
+    if (passwordError) passwordError.style.display = 'none';
+    if (confirmError) confirmError.style.display = 'none';
+
+    // Validate password
+    if (!password) {
+        if (passwordError) {
+            passwordError.textContent = userType === 'existing' ? 'Please enter your password' : 'Please enter a password';
+            passwordError.style.display = 'block';
+        }
+        return;
+    }
+
+    if (userType === 'new') {
+        // Validate password strength
+        const validation = validatePassword(password);
+        if (!validation.valid) {
+            if (passwordError) {
+                passwordError.textContent = validation.errors.join(', ');
+                passwordError.style.display = 'block';
+            }
+            return;
+        }
+
+        // Check confirm password
+        const confirmPassword = document.getElementById('googleConfirmPassword')?.value || '';
+        if (password !== confirmPassword) {
+            if (confirmError) {
+                confirmError.textContent = 'Passwords do not match';
+                confirmError.style.display = 'block';
+            }
+            return;
+        }
+
+        // Save new Google user with password
+        const newUser = {
+            id: userID,
+            email: userEmail,
+            name: userName,
+            password: password,
+            authMethod: 'google',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+        };
+
+        try {
+            // First prompt for role
+            const modal = document.querySelector('.role-selection-modal');
+            if (modal) modal.remove();
+            promptForRole(userID, userName, userEmail, password, newUser);
+        } catch (error) {
+            console.error('Error completing Google signup:', error);
+            if (passwordError) {
+                passwordError.textContent = 'Error: ' + error.message;
+                passwordError.style.display = 'block';
+            }
+        }
+    } else {
+        // Existing user - verify password
+        try {
+            const userSnapshot = await db.ref(`users/${userID}`).get();
+            if (userSnapshot.exists()) {
+                const existingUser = userSnapshot.val();
+                
+                if (existingUser.password === password) {
+                    // Password matches - login
+                    state.currentUser = existingUser;
+                    state.currentRole = existingUser.role;
+                    
+                    // Update last login
+                    await db.ref(`users/${userID}`).update({
+                        lastLogin: new Date().toISOString()
+                    });
+                    
+                    const modal = document.querySelector('.role-selection-modal');
+                    if (modal) modal.remove();
+                    
+                    loginSuccess(existingUser.name, existingUser.role);
+                } else {
+                    // Wrong password
+                    if (passwordError) {
+                        passwordError.textContent = 'Incorrect password. Please try again.';
+                        passwordError.style.display = 'block';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error verifying password:', error);
+            if (passwordError) {
+                passwordError.textContent = 'Error: ' + error.message;
+                passwordError.style.display = 'block';
+            }
+        }
+    }
+}
+
+/**
  * Prompt user to select role
  */
-function promptForRole(userID, userName, userEmail) {
+function promptForRole(userID, userName, userEmail, password = null, userData = null) {
     const roleSelection = document.createElement('div');
     roleSelection.className = 'role-selection-modal';
     roleSelection.innerHTML = `
@@ -556,11 +732,11 @@ function promptForRole(userID, userName, userEmail) {
                 <h3>Select Your Role</h3>
                 <p>Choose your role in the Credit Card Processing System</p>
                 <div class="role-selection" style="margin-bottom: 20px;">
-                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'customer')">
+                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'customer', '${password || ''}')">
                         <span class="role-icon">👤</span>
                         <span class="role-name">Customer</span>
                     </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'merchant')">
+                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'merchant', '${password || ''}')">
                         <span class="role-icon">🏪</span>
                         <span class="role-name">Merchant</span>
                     </button>
@@ -574,7 +750,7 @@ function promptForRole(userID, userName, userEmail) {
 /**
  * Complete Google Login after role selection
  */
-async function completeGoogleLogin(userID, userName, userEmail, role) {
+async function completeGoogleLogin(userID, userName, userEmail, role, password = null) {
     // Save user info to Firebase
     const userData = {
         id: userID,
@@ -585,6 +761,11 @@ async function completeGoogleLogin(userID, userName, userEmail, role) {
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()
     };
+
+    // Add password if it was provided (from Google password creation)
+    if (password) {
+        userData.password = password;
+    }
 
     try {
         await db.ref(`users/${userID}`).set(userData);
