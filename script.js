@@ -521,9 +521,9 @@ async function handleAuthResult(user, isNewUser) {
             console.log('User already registered, asking for password:', user.email);
             promptForGooglePassword(user.uid, existingUser.name, user.email, 'existing');
         } else {
-            // New user - prompt for role selection first, then password
-            console.log('New user, prompting for role:', user.email);
-            promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
+            // New user - prompt to create password first
+            console.log('New user, prompting for password:', user.email);
+            promptForGooglePassword(user.uid, user.displayName || user.email.split('@')[0], user.email, 'new');
         }
     } catch (error) {
         console.error('Error checking user:', error);
