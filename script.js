@@ -540,15 +540,22 @@ function promptForGooglePassword(userID, userName, userEmail, userType = 'new') 
     modal.innerHTML = `
         <div class="modal-overlay">
             <div class="modal-content" style="max-width: 500px;">
-                <h3>${userType === 'existing' ? 'Sign In to Your Account' : 'Create App Password'}</h3>
+                <h3>${userType === 'existing' ? 'Sign In to Your Account' : 'Create App Account'}</h3>
                 <p style="color: #666; margin-bottom: 20px;">
                     ${userType === 'existing' 
                         ? `Welcome back, <strong>${userName}</strong>!<br><br>Enter your app password to continue.` 
-                        : `Create a password for this app<br><strong>${userEmail}</strong>`}
+                        : `Create your account details<br><strong>${userEmail}</strong>`}
                 </p>
+                ${userType === 'new' ? `
                 <div class="form-group" style="margin-bottom: 20px;">
-                    <label for="googlePassword">Password</label>
-                    <input type="password" id="googlePassword" placeholder="${userType === 'existing' ? 'Enter your app password' : 'Min 8 chars, 1 number, 1 special char'}" required autofocus style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                    <label for="googleUsername">Username</label>
+                    <input type="text" id="googleUsername" placeholder="Choose a username (3+ characters)" required autofocus style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                    <div id="usernameError" style="color: #dc3545; font-size: 0.9em; margin-top: 10px; display: none;"></div>
+                </div>
+                ` : ''}
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="googlePassword">${userType === 'existing' ? 'Password' : 'Create Password'}</label>
+                    <input type="password" id="googlePassword" placeholder="${userType === 'existing' ? 'Enter your app password' : 'Min 8 chars, 1 number, 1 special char'}" required ${userType === 'new' ? '' : 'autofocus'} style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
                     <div id="passwordError" style="color: #dc3545; font-size: 0.9em; margin-top: 10px; display: none;"></div>
                 </div>
                 ${userType === 'new' ? `
@@ -564,7 +571,7 @@ function promptForGooglePassword(userID, userName, userEmail, userType = 'new') 
                 </div>
                 ` : ''}
                 <button onclick="completeGoogleAuthWithPassword('${userID}', '${userName}', '${userEmail}', '${userType}')" class="btn btn-primary btn-block" style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
-                    ${userType === 'existing' ? 'Sign In' : 'Create Account'}
+                    ${userType === 'existing' ? 'Sign In' : 'Continue'}
                 </button>
                 <button onclick="document.querySelector('.role-selection-modal').remove()" class="btn" style="padding: 10px; margin-top: 10px; background: #f8f9fa; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600;">Cancel</button>
             </div>
@@ -572,7 +579,7 @@ function promptForGooglePassword(userID, userName, userEmail, userType = 'new') 
     `;
     document.body.appendChild(modal);
 
-    // Add password validation listener for new users
+    // Add validation listeners for new users
     if (userType === 'new') {
         document.getElementById('googlePassword').addEventListener('input', (e) => {
             updateGooglePasswordRequirements(e.target.value);
@@ -623,10 +630,12 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
     const password = passwordInput?.value || '';
     const passwordError = document.getElementById('passwordError');
     const confirmError = document.getElementById('confirmError');
+    const usernameError = document.getElementById('usernameError');
     
     // Clear errors
     if (passwordError) passwordError.style.display = 'none';
     if (confirmError) confirmError.style.display = 'none';
+    if (usernameError) usernameError.style.display = 'none';
 
     // Validate password
     if (!password) {
@@ -638,6 +647,43 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
     }
 
     if (userType === 'new') {
+        // Get username
+        const usernameInput = document.getElementById('googleUsername');
+        const username = usernameInput?.value?.trim() || '';
+        
+        // Validate username
+        if (!username) {
+            if (usernameError) {
+                usernameError.textContent = 'Please enter a username';
+                usernameError.style.display = 'block';
+            }
+            return;
+        }
+
+        // Validate username format
+        const usernameValidation = validateUsername(username);
+        if (!usernameValidation.valid) {
+            if (usernameError) {
+                usernameError.textContent = usernameValidation.message;
+                usernameError.style.display = 'block';
+            }
+            return;
+        }
+
+        // Check if username already exists
+        try {
+            const snapshot = await db.ref('users').orderByChild('username').equalTo(username).get();
+            if (snapshot.exists()) {
+                if (usernameError) {
+                    usernameError.textContent = `Username "${username}" already exists. Please choose another.`;
+                    usernameError.style.display = 'block';
+                }
+                return;
+            }
+        } catch (error) {
+            console.warn('Error checking username:', error);
+        }
+
         // Validate password strength
         const validation = validatePassword(password);
         if (!validation.valid) {
@@ -658,10 +704,11 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
             return;
         }
 
-        // Save new Google user with password
+        // Save new Google user with password and username
         const newUser = {
             id: userID,
             email: userEmail,
+            username: username,
             name: userName,
             password: password,
             authMethod: 'google',
