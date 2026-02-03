@@ -771,6 +771,7 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
  * Prompt user to select role
  */
 function promptForRole(userID, userName, userEmail, password = null, userData = null) {
+    const username = userData?.username || '';
     const roleSelection = document.createElement('div');
     roleSelection.className = 'role-selection-modal';
     roleSelection.innerHTML = `
@@ -779,11 +780,11 @@ function promptForRole(userID, userName, userEmail, password = null, userData = 
                 <h3>Select Your Role</h3>
                 <p>Choose your role in the Credit Card Processing System</p>
                 <div class="role-selection" style="margin-bottom: 20px;">
-                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'customer', '${password || ''}')">
+                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'customer', '${password || ''}', '${username}')">
                         <span class="role-icon">👤</span>
                         <span class="role-name">Customer</span>
                     </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'merchant', '${password || ''}')">
+                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'merchant', '${password || ''}', '${username}')">
                         <span class="role-icon">🏪</span>
                         <span class="role-name">Merchant</span>
                     </button>
@@ -797,7 +798,7 @@ function promptForRole(userID, userName, userEmail, password = null, userData = 
 /**
  * Complete Google Login after role selection
  */
-async function completeGoogleLogin(userID, userName, userEmail, role, password = null) {
+async function completeGoogleLogin(userID, userName, userEmail, role, password = null, username = null) {
     // Save user info to Firebase
     const userData = {
         id: userID,
@@ -812,6 +813,11 @@ async function completeGoogleLogin(userID, userName, userEmail, role, password =
     // Add password if it was provided (from Google password creation)
     if (password) {
         userData.password = password;
+    }
+
+    // Add username if it was provided (from Google password creation)
+    if (username) {
+        userData.username = username;
     }
 
     try {
