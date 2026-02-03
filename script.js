@@ -1,20 +1,22 @@
 // ============ FIREBASE CONFIGURATION ============
 // Replace with your Firebase project configuration
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAU0bh5ZSHtwKdM62wjSywikcD-JXVl4Rg",
+  authDomain: "ccps-4277f.firebaseapp.com",
+  projectId: "ccps-4277f",
+  storageBucket: "ccps-4277f.firebasestorage.app",
+  messagingSenderId: "187400720437",
+  appId: "1:187400720437:web:1750d9dc8000bb5c7fa17c",
+  measurementId: "G-NY0GL5XN4W"
 };
 
 // Initialize Firebase
 let db;
+let auth;
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
+    auth = firebase.auth();
     console.log('Firebase initialized successfully');
 } catch (error) {
     console.warn('Firebase initialization skipped or failed:', error);
@@ -279,16 +281,306 @@ function showScreen(screenId) {
 }
 
 // ============ LOGIN FUNCTIONALITY ============
+// ============ VALIDATION FUNCTIONS ============
+
+/**
+ * Username validation rules - customizable
+ */
+const usernameRules = {
+    minLength: 3,
+    maxLength: 20,
+    pattern: /^[a-zA-Z0-9_-]+$/, // alphanumeric, underscore, hyphen
+    customMessage: 'Username must be 3-20 characters, using only letters, numbers, underscores, and hyphens'
+};
+
+/**
+ * Password validation rules
+ */
+const passwordRules = {
+    minLength: 8,
+    requireNumber: true,
+    requireSpecial: true,
+    specialCharacters: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/
+};
+
+/**
+ * Validate username
+ */
+function validateUsername(username) {
+    if (username.length < usernameRules.minLength || username.length > usernameRules.maxLength) {
+        return {
+            valid: false,
+            message: `Username must be ${usernameRules.minLength}-${usernameRules.maxLength} characters`
+        };
+    }
+    
+    if (!usernameRules.pattern.test(username)) {
+        return {
+            valid: false,
+            message: usernameRules.customMessage
+        };
+    }
+    
+    return { valid: true, message: 'Username is valid ✓' };
+}
+
+/**
+ * Validate password strength
+ */
+function validatePassword(password) {
+    const result = {
+        valid: true,
+        errors: [],
+        length: false,
+        number: false,
+        special: false
+    };
+
+    // Check length
+    if (password.length < passwordRules.minLength) {
+        result.errors.push(`Password must be at least ${passwordRules.minLength} characters`);
+        result.valid = false;
+    } else {
+        result.length = true;
+    }
+
+    // Check for number
+    if (passwordRules.requireNumber && !/\d/.test(password)) {
+        result.errors.push('Password must contain at least one number');
+        result.valid = false;
+    } else if (passwordRules.requireNumber) {
+        result.number = true;
+    }
+
+    // Check for special character
+    if (passwordRules.requireSpecial && !passwordRules.specialCharacters.test(password)) {
+        result.errors.push('Password must contain at least one special character (!@#$%^&*)');
+        result.valid = false;
+    } else if (passwordRules.requireSpecial) {
+        result.special = true;
+    }
+
+    return result;
+}
+
+/**
+ * Check if username already exists in Firebase
+ */
+async function checkUsernameExists(username) {
+    if (!db) {
+        return false;
+    }
+    try {
+        const snapshot = await db.ref('users').orderByChild('username').equalTo(username).get();
+        return snapshot.exists();
+    } catch (error) {
+        console.error('Error checking username:', error);
+        return false;
+    }
+}
+
+/**
+ * Register new user
+ */
+async function registerUser(fullName, username, password, role) {
+    if (!db) {
+        console.error('Firebase not initialized');
+        return { success: false, message: 'Database not available' };
+    }
+
+    try {
+        // Check if username exists
+        const usernameExists = await checkUsernameExists(username);
+        if (usernameExists) {
+            return { success: false, message: 'Username already exists' };
+        }
+
+        // Generate user ID
+        const userId = `${role}_${Date.now()}`;
+        
+        // Create user object
+        const userData = {
+            id: userId,
+            username: username,
+            password: password, // In production, use hash!
+            name: fullName,
+            role: role,
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+        };
+
+        // Save to Firebase
+        await db.ref(`users/${userId}`).set(userData);
+        
+        console.log('User registered:', userId);
+        return { success: true, message: 'Registration successful!', userId: userId, userData: userData };
+    } catch (error) {
+        console.error('Error registering user:', error);
+        return { success: false, message: 'Registration failed. Please try again.' };
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadMockData();
+    initializeGoogleSignIn();
+    // Monitor auth state
+    if (auth) {
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('User authenticated:', user.email);
+            } else {
+                console.log('User not authenticated');
+            }
+        });
+    }
 });
 
+/**
+ * Initialize Google Sign-In with Firebase UI
+ */
+function initializeGoogleSignIn() {
+    if (!auth) {
+        console.error('Firebase not initialized');
+        setTimeout(initializeGoogleSignIn, 1000);
+        return;
+    }
+
+    try {
+        // Check if firebaseui exists
+        if (typeof firebaseui === 'undefined') {
+            console.warn('FirebaseUI not loaded yet');
+            setTimeout(initializeGoogleSignIn, 1000);
+            return;
+        }
+
+        // Create or get FirebaseUI instance
+        let ui;
+        if (firebaseui.auth.AuthUI.getInstance()) {
+            ui = firebaseui.auth.AuthUI.getInstance();
+        } else {
+            ui = new firebaseui.auth.AuthUI(auth);
+        }
+
+        const uiConfig = {
+            signInSuccessUrl: '#',
+            signInOptions: [
+                firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+                firebase.auth.EmailAuthProvider.PROVIDER_ID
+            ],
+            callbacks: {
+                signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+                    const user = authResult.user;
+                    console.log('Sign-in successful:', user.email);
+                    promptForRole(user.uid, user.displayName || user.email.split('@')[0], user.email);
+                    return false;
+                },
+                uiShown: function() {
+                    // UI is shown
+                    console.log('FirebaseUI is shown');
+                }
+            },
+            signInFlow: 'popup'
+        };
+
+        // Start the UI
+        const container = document.getElementById('firebaseUIContainer');
+        if (container) {
+            ui.start('#firebaseUIContainer', uiConfig);
+        }
+    } catch (error) {
+        console.error('Error initializing FirebaseUI:', error);
+        setTimeout(initializeGoogleSignIn, 2000);
+    }
+}
+
+/**
+ * Prompt user to select role
+ */
+function promptForRole(userID, userName, userEmail) {
+    const roleSelection = document.createElement('div');
+    roleSelection.className = 'role-selection-modal';
+    roleSelection.innerHTML = `
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <h3>Select Your Role</h3>
+                <p>Choose your role in the Credit Card Processing System</p>
+                <div class="role-selection" style="margin-bottom: 20px;">
+                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'customer')">
+                        <span class="role-icon">👤</span>
+                        <span class="role-name">Customer</span>
+                    </button>
+                    <button class="role-btn" onclick="completeGoogleLogin('${userID}', '${userName}', '${userEmail}', 'merchant')">
+                        <span class="role-icon">🏪</span>
+                        <span class="role-name">Merchant</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(roleSelection);
+}
+
+/**
+ * Complete Google Login after role selection
+ */
+async function completeGoogleLogin(userID, userName, userEmail, role) {
+    // Save user info to Firebase
+    const userData = {
+        id: userID,
+        email: userEmail,
+        name: userName,
+        role: role,
+        authMethod: 'google',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+    };
+
+    try {
+        await db.ref(`users/${userID}`).set(userData);
+        console.log('User profile saved:', userID);
+    } catch (error) {
+        console.warn('Could not save user to database:', error);
+    }
+
+    // Set current user
+    state.currentUser = userData;
+    state.currentRole = role;
+
+    // Remove role selection modal
+    const modal = document.querySelector('.role-selection-modal');
+    if (modal) modal.remove();
+
+    // Navigate to appropriate dashboard
+    loginSuccess(userName, role);
+}
+
 function setupEventListeners() {
-    // Role selection
-    document.querySelectorAll('.role-btn').forEach(btn => {
+    // Login tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const tabName = btn.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.login-tab-content').forEach(t => t.classList.remove('active'));
+            
+            btn.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        });
+    });
+
+    // Login role selection
+    document.querySelectorAll('.role-btn:not(.register-role)').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.role-btn:not(.register-role)').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.currentRole = btn.dataset.role;
+        });
+    });
+
+    // Register role selection
+    document.querySelectorAll('.register-role').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.register-role').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.currentRole = btn.dataset.role;
         });
@@ -296,6 +588,19 @@ function setupEventListeners() {
 
     // Login
     document.getElementById('loginBtn').addEventListener('click', handleLogin);
+
+    // Registration
+    document.getElementById('registerBtn')?.addEventListener('click', handleRegistration);
+
+    // Password validation on input
+    document.getElementById('registerPassword')?.addEventListener('input', (e) => {
+        updatePasswordRequirements(e.target.value);
+    });
+
+    // Username validation on input
+    document.getElementById('registerUsername')?.addEventListener('input', (e) => {
+        updateUsernameValidation(e.target.value);
+    });
 
     // Dashboard navigation
     document.querySelectorAll('.menu-btn').forEach(btn => {
@@ -361,7 +666,7 @@ function setupEventListeners() {
     setupAlerts();
 }
 
-function handleLogin() {
+async function handleLogin() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
     const role = state.currentRole;
@@ -380,13 +685,14 @@ function handleLogin() {
         return;
     }
 
-    const user = demoUsers[role];
-    if (username === user.username && password === user.password) {
-        state.currentUser = { ...user, role };
+    // Check demo users first
+    const demoUser = demoUsers[role];
+    if (username === demoUser.username && password === demoUser.password) {
+        state.currentUser = { ...demoUser, role };
         
         // Save login to Firebase
-        saveUser(user.id, {
-            ...user,
+        saveUser(demoUser.id, {
+            ...demoUser,
             role,
             lastLogin: new Date().toISOString()
         });
@@ -396,28 +702,218 @@ function handleLogin() {
         document.getElementById('password').value = '';
         
         // Navigate to appropriate dashboard
-        if (role === 'customer') {
-            document.getElementById('welcomeName').textContent = user.name;
-            document.getElementById('customerName').textContent = user.name;
-            showScreen('customerDashboard');
-        } else if (role === 'merchant') {
-            document.getElementById('merchantWelcomeName').textContent = user.name;
-            document.getElementById('merchantName').textContent = user.name;
-            showScreen('merchantDashboard');
-        } else if (role === 'admin') {
-            document.getElementById('adminName').textContent = user.name;
-            updateAdminDashboard();
-            showScreen('adminDashboard');
-        }
-    } else {
-        showError('Invalid username or password', errorDiv);
+        loginSuccess(demoUser.name, role);
+        return;
     }
+
+    // Check Firebase for registered users
+    if (db) {
+        try {
+            const snapshot = await db.ref('users').orderByChild('username').equalTo(username).get();
+            if (snapshot.exists()) {
+                let user = null;
+                snapshot.forEach(child => {
+                    user = child.val();
+                });
+
+                // Verify password and role match
+                if (user && user.password === password && user.role === role) {
+                    state.currentUser = user;
+                    
+                    // Update last login
+                    saveUser(user.id, {
+                        ...user,
+                        lastLogin: new Date().toISOString()
+                    });
+                    
+                    // Clear form
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    
+                    // Navigate to appropriate dashboard
+                    loginSuccess(user.name, role);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.warn('Firebase login check failed:', error);
+        }
+    }
+
+    // If we get here, login failed
+    showError('Invalid username or password', errorDiv);
+}
+
+/**
+ * Handle successful login
+ */
+function loginSuccess(userName, role) {
+    if (role === 'customer') {
+        document.getElementById('welcomeName').textContent = userName;
+        document.getElementById('customerName').textContent = userName;
+        showScreen('customerDashboard');
+    } else if (role === 'merchant') {
+        document.getElementById('merchantWelcomeName').textContent = userName;
+        document.getElementById('merchantName').textContent = userName;
+        showScreen('merchantDashboard');
+    } else if (role === 'admin') {
+        document.getElementById('adminName').textContent = userName;
+        updateAdminDashboard();
+        showScreen('adminDashboard');
+    }
+}
+
+/**
+ * Handle user registration
+ */
+async function handleRegistration() {
+    const fullName = document.getElementById('registerFullName').value.trim();
+    const username = document.getElementById('registerUsername').value.trim();
+    const password = document.getElementById('registerPassword').value.trim();
+    const confirmPassword = document.getElementById('registerConfirmPassword').value.trim();
+    const role = state.currentRole;
+    const errorDiv = document.getElementById('registerError');
+    const successDiv = document.getElementById('registerSuccess');
+
+    // Clear previous messages
+    errorDiv.textContent = '';
+    errorDiv.classList.remove('show');
+    successDiv.textContent = '';
+    successDiv.classList.remove('show');
+
+    // Validations
+    if (!role) {
+        showError('Please select a role', errorDiv);
+        return;
+    }
+
+    if (!fullName) {
+        showError('Please enter your full name', errorDiv);
+        return;
+    }
+
+    // Validate username
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
+        showError(usernameValidation.message, errorDiv);
+        return;
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+        showError(passwordValidation.errors.join(', '), errorDiv);
+        return;
+    }
+
+    // Confirm password match
+    if (password !== confirmPassword) {
+        showError('Passwords do not match', errorDiv);
+        return;
+    }
+
+    // Register user
+    const result = await registerUser(fullName, username, password, role);
+    
+    if (result.success) {
+        // Show success message
+        successDiv.textContent = result.message;
+        successDiv.classList.add('show');
+
+        // Clear form
+        document.getElementById('registerFullName').value = '';
+        document.getElementById('registerUsername').value = '';
+        document.getElementById('registerPassword').value = '';
+        document.getElementById('registerConfirmPassword').value = '';
+
+        // Update password requirements display
+        updatePasswordRequirements('');
+
+        // Auto-login the user
+        setTimeout(() => {
+            state.currentUser = { 
+                ...result.userData,
+                id: result.userId
+            };
+            
+            // Navigate to dashboard
+            if (role === 'customer') {
+                document.getElementById('welcomeName').textContent = fullName;
+                document.getElementById('customerName').textContent = fullName;
+                showScreen('customerDashboard');
+            } else if (role === 'merchant') {
+                document.getElementById('merchantWelcomeName').textContent = fullName;
+                document.getElementById('merchantName').textContent = fullName;
+                showScreen('merchantDashboard');
+            }
+        }, 1500);
+    } else {
+        showError(result.message, errorDiv);
+    }
+}
+
+/**
+ * Update password requirements display
+ */
+function updatePasswordRequirements(password) {
+    const validation = validatePassword(password);
+    
+    const lengthReq = document.getElementById('req-length');
+    const numberReq = document.getElementById('req-number');
+    const specialReq = document.getElementById('req-special');
+
+    if (validation.length) {
+        lengthReq.classList.add('met');
+    } else {
+        lengthReq.classList.remove('met');
+    }
+
+    if (validation.number) {
+        numberReq.classList.add('met');
+    } else {
+        numberReq.classList.remove('met');
+    }
+
+    if (validation.special) {
+        specialReq.classList.add('met');
+    } else {
+        specialReq.classList.remove('met');
+    }
+}
+
+/**
+ * Update username validation display
+ */
+function updateUsernameValidation(username) {
+    const usernameMsg = document.getElementById('usernameMsg');
+    
+    if (!username) {
+        usernameMsg.textContent = '';
+        usernameMsg.classList.remove('error', 'success');
+        return;
+    }
+
+    const validation = validateUsername(username);
+    usernameMsg.textContent = validation.message;
+    usernameMsg.classList.remove('error', 'success');
+    usernameMsg.classList.add(validation.valid ? 'success' : 'error');
 }
 
 function logout() {
     state.currentUser = null;
     state.currentRole = null;
     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.register-role').forEach(b => b.classList.remove('active'));
+    
+    // Sign out from Firebase
+    if (auth) {
+        auth.signOut().then(() => {
+            console.log('User signed out from Firebase');
+        }).catch((error) => {
+            console.error('Sign out error:', error);
+        });
+    }
+    
     showScreen('loginScreen');
     showAlert('Logged out successfully', 'success');
 }
@@ -1160,8 +1656,10 @@ function loadMockData() {
         { id: 'merch_002', name: 'XYZ Retail' }
     ];
 
-    // Sync initial mock data with Firebase
-    syncMockDataWithFirebase();
+    // Sync initial mock data with Firebase (only after rules are updated)
+    // Uncomment the line below after fixing Firebase rules
+    // syncMockDataWithFirebase();
+    console.log('Mock data loaded locally. Firebase sync disabled until permissions are fixed.');
 }
 
 /**
@@ -1192,5 +1690,6 @@ async function syncMockDataWithFirebase() {
         console.log('Mock data synced with Firebase');
     } catch (error) {
         console.error('Error syncing mock data with Firebase:', error);
+        console.log('Make sure your Firebase Database Rules allow write operations.');
     }
 }

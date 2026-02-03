@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Card Processing System</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+    <!-- Firebase SDK v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <!-- FirebaseUI for Authentication -->
+    <script src="https://www.gstatic.com/firebasejs/ui/4.8.1/firebase-ui-auth.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.8.1/firebase-ui-auth.css" />
+    <!-- Google Sign-In -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="app-container">
@@ -19,39 +25,108 @@
                     <p>Educational Platform</p>
                 </div>
                 
-                <div class="login-content">
-                    <h2>Select Your Role</h2>
-                    <div class="role-selection">
-                        <button class="role-btn" data-role="customer">
-                            <span class="role-icon">👤</span>
-                            <span class="role-name">Customer</span>
-                        </button>
-                        <button class="role-btn" data-role="merchant">
-                            <span class="role-icon">🏪</span>
-                            <span class="role-name">Merchant</span>
-                        </button>
-                        <button class="role-btn" data-role="admin">
-                            <span class="role-icon">🏦</span>
-                            <span class="role-name">Admin / Bank Officer</span>
-                        </button>
+                <div class="login-tabs">
+                    <button class="tab-btn active" data-tab="login-tab">Login</button>
+                    <button class="tab-btn" data-tab="register-tab">Register</button>
+                </div>
+
+                <!-- Login Tab -->
+                <div id="login-tab" class="login-tab-content active">
+                    <div class="login-content">
+                        <h2>Login with Google</h2>
+                        
+                        <!-- Google Sign-In Button -->
+                        <div id="firebaseSignIn" class="firebase-signin-container">
+                            <div id="firebaseUIContainer"></div>
+                        </div>
+
+                        <div class="divider">OR</div>
+
+                        <h3>Select Your Role (Demo Login)</h3>
+                        <div class="role-selection">
+                            <button class="role-btn" data-role="customer">
+                                <span class="role-icon">👤</span>
+                                <span class="role-name">Customer</span>
+                            </button>
+                            <button class="role-btn" data-role="merchant">
+                                <span class="role-icon">🏪</span>
+                                <span class="role-name">Merchant</span>
+                            </button>
+                            <button class="role-btn" data-role="admin">
+                                <span class="role-icon">🏦</span>
+                                <span class="role-name">Admin / Bank Officer</span>
+                            </button>
+                        </div>
+
+                        <div class="login-form">
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" id="username" placeholder="Enter username" required>
+                                <div class="help-text">Demo: customer1, merchant1, admin1</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="password">Password</label>
+                                <input type="password" id="password" placeholder="Enter password" required>
+                                <div class="help-text">Demo: demo123</div>
+                            </div>
+
+                            <button id="loginBtn" class="btn btn-primary btn-block">Login</button>
+
+                            <div id="loginError" class="error-message"></div>
+                        </div>
                     </div>
+                </div>
 
-                    <div class="login-form">
-                        <div class="form-group">
-                            <label for="username">Username</label>
-                            <input type="text" id="username" placeholder="Enter username" required>
-                            <div class="help-text">Demo: customer1, merchant1, admin1</div>
+                <!-- Register Tab -->
+                <div id="register-tab" class="login-tab-content">
+                    <div class="login-content">
+                        <h2>Create New Account</h2>
+                        <div class="role-selection">
+                            <button class="role-btn register-role" data-role="customer">
+                                <span class="role-icon">👤</span>
+                                <span class="role-name">Customer</span>
+                            </button>
+                            <button class="role-btn register-role" data-role="merchant">
+                                <span class="role-icon">🏪</span>
+                                <span class="role-name">Merchant</span>
+                            </button>
                         </div>
 
-                        <div class="form-group">
-                            <label for="password">Password</label>
-                            <input type="password" id="password" placeholder="Enter password" required>
-                            <div class="help-text">Demo: demo123</div>
+                        <div class="register-form">
+                            <div class="form-group">
+                                <label for="registerFullName">Full Name</label>
+                                <input type="text" id="registerFullName" placeholder="Enter your full name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="registerUsername">Username</label>
+                                <input type="text" id="registerUsername" placeholder="Choose a username (3+ characters)" required>
+                                <div id="usernameMsg" class="validation-message"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="registerPassword">Password</label>
+                                <input type="password" id="registerPassword" placeholder="Min 8 chars, 1 number, 1 special char" required>
+                                <div id="passwordMsg" class="validation-message"></div>
+                                <div class="password-requirements">
+                                    <div class="req-item" id="req-length">✗ At least 8 characters</div>
+                                    <div class="req-item" id="req-number">✗ At least one number (0-9)</div>
+                                    <div class="req-item" id="req-special">✗ At least one special character (!@#$%^&*)</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="registerConfirmPassword">Confirm Password</label>
+                                <input type="password" id="registerConfirmPassword" placeholder="Re-enter your password" required>
+                                <div id="confirmPasswordMsg" class="validation-message"></div>
+                            </div>
+
+                            <button id="registerBtn" class="btn btn-primary btn-block">Create Account</button>
+
+                            <div id="registerError" class="error-message"></div>
+                            <div id="registerSuccess" class="success-message"></div>
                         </div>
-
-                        <button id="loginBtn" class="btn btn-primary btn-block">Login</button>
-
-                        <div id="loginError" class="error-message"></div>
                     </div>
                 </div>
             </div>
