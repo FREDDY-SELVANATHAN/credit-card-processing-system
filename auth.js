@@ -114,12 +114,15 @@ async function handleLogin() {
             // If not found by username, try to find by email
             if (!foundUser) {
                 try {
-                    const emailSnapshot = await db.ref('users').orderByChild('email').equalTo(usernameOrEmail).get();
+                    const allUsersSnapshot = await db.ref('users').get();
                     
-                    if (emailSnapshot.exists()) {
-                        emailSnapshot.forEach(child => {
-                            foundUser = child.val();
-                            userId = child.key;
+                    if (allUsersSnapshot.exists()) {
+                        allUsersSnapshot.forEach(child => {
+                            const user = child.val();
+                            if (user.email && user.email.toLowerCase() === usernameOrEmail.toLowerCase()) {
+                                foundUser = user;
+                                userId = child.key;
+                            }
                         });
                     }
                 } catch (error) {
