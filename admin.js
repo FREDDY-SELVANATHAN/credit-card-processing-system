@@ -1,6 +1,58 @@
 // ============ ADMIN CARD MANAGEMENT & REPORTS ============
 
 /**
+ * Load all admin data from Firebase
+ */
+async function loadAdminData() {
+    try {
+        // Load all users
+        if (db) {
+            const usersSnapshot = await db.ref('users').get();
+            if (usersSnapshot.exists()) {
+                state.merchants = [];
+                usersSnapshot.forEach(child => {
+                    const user = child.val();
+                    if (user.role === 'merchant') {
+                        state.merchants.push({
+                            id: child.key,
+                            ...user
+                        });
+                    }
+                });
+            }
+
+            // Load all cards
+            const cardsSnapshot = await db.ref('cards').get();
+            if (cardsSnapshot.exists()) {
+                state.cards = [];
+                cardsSnapshot.forEach(child => {
+                    state.cards.push({
+                        id: child.key,
+                        ...child.val()
+                    });
+                });
+            }
+
+            // Load all transactions
+            const transactionsSnapshot = await db.ref('transactions').get();
+            if (transactionsSnapshot.exists()) {
+                state.transactions = [];
+                transactionsSnapshot.forEach(child => {
+                    state.transactions.push({
+                        id: child.key,
+                        ...child.val()
+                    });
+                });
+            }
+
+            console.log('Admin data loaded from database');
+        }
+    } catch (error) {
+        console.error('Error loading admin data:', error);
+    }
+}
+
+/**
  * Setup card management
  */
 function setupCardManagement() {
@@ -31,7 +83,7 @@ function updateCardTable() {
 
     let filtered = state.cards.filter(c =>
         (!statusFilter || c.status === statusFilter) &&
-        (!customerSearch || c.customerId.includes(customerSearch))
+        (!customerSearch || (c.customerId && c.customerId.includes(customerSearch)))
     );
 
     tbody.innerHTML = '';
@@ -46,12 +98,12 @@ function updateCardTable() {
     filtered.forEach(card => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${card.customerId}</td>
+            <td>${card.customerId || 'N/A'}</td>
             <td>${maskCardNumber(card.cardNumber)}</td>
-            <td>${card.holder}</td>
+            <td>${card.holder || 'N/A'}</td>
             <td><span class="status-badge ${card.status}">${card.status.charAt(0).toUpperCase() + card.status.slice(1)}</span></td>
-            <td>$${card.limit.toFixed(2)}</td>
-            <td><button class="btn btn-primary action-btn" onclick="openCardActionModal('${card.customerId}', '${card.cardNumber}', '${card.status}')">Manage</button></td>
+            <td>$${card.limit ? card.limit.toFixed(2) : '0.00'}</td>
+            <td><button class="btn btn-primary action-btn" onclick="openCardActionModal('${card.id}')">Manage</button></td>
         `;
         tbody.appendChild(row);
     });
@@ -62,13 +114,16 @@ let selectedCard = null;
 /**
  * Open card action modal
  */
-function openCardActionModal(customerId, cardNumber, status) {
-    selectedCard = { customerId, cardNumber, status };
-    document.getElementById('modalCustomerId').textContent = customerId;
-    document.getElementById('modalCardNumber').textContent = maskCardNumber(cardNumber);
-    document.getElementById('modalCardStatus').textContent = status.charAt(0).toUpperCase() + status.slice(1);
+function openCardActionModal(cardId) {
+    const card = state.cards.find(c => c.id === cardId);
+    if (!card) return;
     
-    if (status === 'active') {
+    selectedCard = { cardId, cardNumber: card.cardNumber, status: card.status };
+    document.getElementById('modalCustomerId').textContent = card.customerId || 'N/A';
+    document.getElementById('modalCardNumber').textContent = maskCardNumber(card.cardNumber);
+    document.getElementById('modalCardStatus').textContent = card.status.charAt(0).toUpperCase() + card.status.slice(1);
+    
+    if (card.status === 'active') {
         document.getElementById('blockCardBtn').classList.remove('hidden');
         document.getElementById('unblockCardBtn').classList.add('hidden');
     } else {
@@ -94,10 +149,22 @@ function closeCardActionModal() {
  */
 function blockCard() {
     if (selectedCard) {
-        confirmAction('Block Card', 'Are you sure you want to block this card?', () => {
-            const card = state.cards.find(c => c.customerId === selectedCard.customerId);
+        confirmAction('Block Card', 'Are you sure you want to block this card?', async () => {
+            const card = state.cards.find(c => c.id === selectedCard.cardId);
             if (card) {
                 card.status = 'blocked';
+                
+                // Update in Firebase
+                if (db) {
+                    try {
+                        await db.ref(`cards/${selectedCard.cardId}`).update({
+                            status: 'blocked'
+                        });
+                    } catch (error) {
+                        console.error('Error updating card status:', error);
+                    }
+                }
+                
                 document.getElementById('blockCardBtn').classList.add('hidden');
                 document.getElementById('unblockCardBtn').classList.remove('hidden');
                 document.getElementById('modalCardStatus').textContent = 'Blocked';
@@ -113,10 +180,22 @@ function blockCard() {
  */
 function unblockCard() {
     if (selectedCard) {
-        confirmAction('Unblock Card', 'Are you sure you want to unblock this card?', () => {
-            const card = state.cards.find(c => c.customerId === selectedCard.customerId);
+        confirmAction('Unblock Card', 'Are you sure you want to unblock this card?', async () => {
+            const card = state.cards.find(c => c.id === selectedCard.cardId);
             if (card) {
                 card.status = 'active';
+                
+                // Update in Firebase
+                if (db) {
+                    try {
+                        await db.ref(`cards/${selectedCard.cardId}`).update({
+                            status: 'active'
+                        });
+                    } catch (error) {
+                        console.error('Error updating card status:', error);
+                    }
+                }
+                
                 document.getElementById('blockCardBtn').classList.remove('hidden');
                 document.getElementById('unblockCardBtn').classList.add('hidden');
                 document.getElementById('modalCardStatus').textContent = 'Active';
@@ -152,10 +231,22 @@ function confirmLimitUpdate() {
         return;
     }
 
-    confirmAction('Update Credit Limit', `Are you sure you want to update the credit limit to $${newLimit}?`, () => {
-        const card = state.cards.find(c => c.customerId === selectedCard.customerId);
+    confirmAction('Update Credit Limit', `Are you sure you want to update the credit limit to $${newLimit}?`, async () => {
+        const card = state.cards.find(c => c.id === selectedCard.cardId);
         if (card) {
             card.limit = parseFloat(newLimit);
+            
+            // Update in Firebase
+            if (db) {
+                try {
+                    await db.ref(`cards/${selectedCard.cardId}`).update({
+                        limit: parseFloat(newLimit)
+                    });
+                } catch (error) {
+                    console.error('Error updating credit limit:', error);
+                }
+            }
+            
             showCardActionMessage(`Credit limit has been updated to $${card.limit.toFixed(2)}`);
             hideUpdateLimitForm();
             updateCardTable();

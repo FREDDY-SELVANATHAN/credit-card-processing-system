@@ -3,7 +3,10 @@
 /**
  * Update admin dashboard with statistics
  */
-function updateAdminDashboard() {
+async function updateAdminDashboard() {
+    // Load fresh data from database
+    await loadAdminData();
+    
     const stats = {
         total: state.transactions.length,
         success: state.transactions.filter(t => t.status === 'success').length,
@@ -15,4 +18,8 @@ function updateAdminDashboard() {
     document.getElementById('successTransCount').textContent = stats.success.toLocaleString();
     document.getElementById('failedTransCount').textContent = stats.failed.toLocaleString();
     document.getElementById('pendingTransCount').textContent = stats.pending.toLocaleString();
+    
+    // Update tables
+    updateCardTable();
+    updateFailedLogsTable();
 }
