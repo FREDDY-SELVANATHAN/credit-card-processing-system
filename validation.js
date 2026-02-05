@@ -97,6 +97,46 @@ async function checkUsernameExists(username) {
 }
 
 /**
+ * Validate email
+ */
+function validateEmail(email) {
+    // Email validation pattern
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!email) {
+        return {
+            valid: false,
+            message: 'Email is required'
+        };
+    }
+    
+    if (!emailPattern.test(email)) {
+        return {
+            valid: false,
+            message: 'Please enter a valid email address'
+        };
+    }
+    
+    return { valid: true, message: 'Email is valid ✓' };
+}
+
+/**
+ * Check if email already exists in Firebase
+ */
+async function checkEmailExists(email) {
+    if (!db) {
+        return false;
+    }
+    try {
+        const snapshot = await db.ref('users').orderByChild('email').equalTo(email).get();
+        return snapshot.exists();
+    } catch (error) {
+        console.error('Error checking email:', error);
+        return false;
+    }
+}
+
+/**
  * Validate card number
  */
 function validateCardNumber(cardNumber) {

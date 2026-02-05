@@ -3,7 +3,7 @@
 /**
  * Register new user
  */
-async function registerUser(fullName, username, password, role) {
+async function registerUser(fullName, username, email, password, role) {
     if (!db) {
         console.error('Firebase not initialized');
         return { success: false, message: 'Database not available' };
@@ -16,6 +16,12 @@ async function registerUser(fullName, username, password, role) {
             return { success: false, message: 'Username already exists' };
         }
 
+        // Check if email exists
+        const emailExists = await checkEmailExists(email);
+        if (emailExists) {
+            return { success: false, message: 'Email already registered' };
+        }
+
         // Generate user ID
         const userId = `${role}_${Date.now()}`;
         
@@ -23,6 +29,7 @@ async function registerUser(fullName, username, password, role) {
         const userData = {
             id: userId,
             username: username,
+            email: email,
             password: password, // In production, use hash!
             name: fullName,
             role: role,
@@ -45,7 +52,7 @@ async function registerUser(fullName, username, password, role) {
  * Handle user login
  */
 async function handleLogin() {
-    const username = document.getElementById('username').value.trim();
+    const usernameOrEmail = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
     const role = state.currentRole;
     const errorDiv = document.getElementById('loginError');
@@ -58,15 +65,15 @@ async function handleLogin() {
         return;
     }
 
-    if (!username || !password) {
-        showError('Please enter username and password', errorDiv);
+    if (!usernameOrEmail || !password) {
+        showError('Please enter username/email and password', errorDiv);
         return;
     }
 
     try {
         // Check demo users first (for demo purposes)
         const demoUser = demoUsers[role];
-        if (username === demoUser.username && password === demoUser.password) {
+        if (usernameOrEmail === demoUser.username && password === demoUser.password) {
             state.currentUser = { ...demoUser, role };
             
             // Save login to Firebase
@@ -87,27 +94,48 @@ async function handleLogin() {
 
         // Check Firebase for registered users
         if (db) {
-            // Query by username
-            const usersRef = db.ref('users');
-            const snapshot = await usersRef.orderByChild('username').equalTo(username).get();
-            
-            if (snapshot.exists()) {
-                let foundUser = null;
-                let userId = null;
+            let foundUser = null;
+            let userId = null;
 
-                snapshot.forEach(child => {
-                    foundUser = child.val();
-                    userId = child.key;
-                });
+            // First try to find by username
+            try {
+                const usernameSnapshot = await db.ref('users').orderByChild('username').equalTo(usernameOrEmail).get();
+                
+                if (usernameSnapshot.exists()) {
+                    usernameSnapshot.forEach(child => {
+                        foundUser = child.val();
+                        userId = child.key;
+                    });
+                }
+            } catch (error) {
+                console.warn('Error checking username:', error);
+            }
 
+            // If not found by username, try to find by email
+            if (!foundUser) {
+                try {
+                    const emailSnapshot = await db.ref('users').orderByChild('email').equalTo(usernameOrEmail).get();
+                    
+                    if (emailSnapshot.exists()) {
+                        emailSnapshot.forEach(child => {
+                            foundUser = child.val();
+                            userId = child.key;
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error checking email:', error);
+                }
+            }
+
+            if (foundUser) {
                 // Check if role matches first
-                if (foundUser && foundUser.role !== role) {
+                if (foundUser.role !== role) {
                     showError(`This account is registered as a ${foundUser.role}. Please select the correct role to login.`, errorDiv);
                     return;
                 }
 
                 // Verify password matches
-                if (foundUser && foundUser.password === password) {
+                if (foundUser.password === password) {
                     state.currentUser = { ...foundUser, id: userId };
                     state.currentRole = role;
                     
@@ -120,19 +148,19 @@ async function handleLogin() {
                     document.getElementById('username').value = '';
                     document.getElementById('password').value = '';
                     
-                    console.log('User logged in successfully:', username);
+                    console.log('User logged in successfully:', usernameOrEmail);
                     
                     // Navigate to appropriate dashboard
                     loginSuccess(foundUser.name, role);
                     return;
                 } else {
-                    // Username exists but password is wrong
+                    // Password is wrong
                     showError('❌ Incorrect password. Please try again.', errorDiv);
                     return;
                 }
             } else {
-                // Username doesn't exist - suggest registration
-                const errorMessage = `<div>❌ Username "<strong>${username}</strong>" not found.</div><div style="margin-top: 10px; font-size: 0.9em;">Don't have an account? <strong>Click "Register"</strong> tab to create one.</div>`;
+                // User not found - suggest registration
+                const errorMessage = `<div>❌ Username or email "<strong>${usernameOrEmail}</strong>" not found.</div><div style="margin-top: 10px; font-size: 0.9em;">Don't have an account? <strong>Click "Register"</strong> tab to create one.</div>`;
                 errorDiv.innerHTML = errorMessage;
                 errorDiv.classList.add('show');
                 return;
@@ -152,6 +180,7 @@ async function handleLogin() {
 async function handleRegistration() {
     const fullName = document.getElementById('registerFullName').value.trim();
     const username = document.getElementById('registerUsername').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value.trim();
     const confirmPassword = document.getElementById('registerConfirmPassword').value.trim();
     const role = state.currentRole;
@@ -182,6 +211,13 @@ async function handleRegistration() {
         return;
     }
 
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+        showError(emailValidation.message, errorDiv);
+        return;
+    }
+
     // Check if username already exists
     if (db) {
         try {
@@ -194,6 +230,21 @@ async function handleRegistration() {
             }
         } catch (error) {
             console.warn('Error checking username:', error);
+        }
+    }
+
+    // Check if email already exists
+    if (db) {
+        try {
+            const snapshot = await db.ref('users').orderByChild('email').equalTo(email).get();
+            if (snapshot.exists()) {
+                const errorMessage = `<div>❌ Email "<strong>${email}</strong>" is already registered.</div><div style="margin-top: 10px; font-size: 0.9em;">Already have an account? <strong>Click "Login"</strong> tab to sign in.</div>`;
+                errorDiv.innerHTML = errorMessage;
+                errorDiv.classList.add('show');
+                return;
+            }
+        } catch (error) {
+            console.warn('Error checking email:', error);
         }
     }
 
@@ -216,6 +267,7 @@ async function handleRegistration() {
         const newUser = {
             id: userId,
             username: username,
+            email: email,
             password: password, // Note: In production, use bcrypt or similar for hashing
             name: fullName,
             role: role,
@@ -236,6 +288,7 @@ async function handleRegistration() {
             // Clear form
             document.getElementById('registerFullName').value = '';
             document.getElementById('registerUsername').value = '';
+            document.getElementById('registerEmail').value = '';
             document.getElementById('registerPassword').value = '';
             document.getElementById('registerConfirmPassword').value = '';
 
