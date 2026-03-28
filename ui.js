@@ -34,6 +34,11 @@ function showScreen(screenId) {
         if (screenId === 'transactionHistory') {
             updateTransactionTable();
         }
+        
+        // Update pending payments when showing pending screen
+        if (screenId === 'pendingPayments') {
+            updatePendingPaymentsTable();
+        }
     }
 }
 

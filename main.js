@@ -39,7 +39,8 @@ function loadMockData() {
     // Initialize with mock data
     state.merchants = [
         { id: 'merch_001', name: 'ABC Store' },
-        { id: 'merch_002', name: 'XYZ Retail' }
+        { id: 'merch_002', name: 'XYZ Retail' },
+        { id: 'merchant1', name: 'Tech Mart' }  // Add demo merchant
     ];
 
     // Sync initial mock data with Firebase (only after rules are updated)
@@ -63,6 +64,9 @@ function startRealTimeSyncListeners() {
         }
         if (document.getElementById('merchantTransTableBody')) {
             updateMerchantTransactionTable();
+        }
+        if (document.getElementById('pendingRequestsBody')) {
+            updatePendingPaymentsTable();
         }
     });
     

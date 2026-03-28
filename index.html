@@ -214,6 +214,11 @@
                         <span class="btn-text">Make Payment</span>
                         <span class="btn-arrow">→</span>
                     </button>
+                    <button class="menu-btn" data-screen="pendingPayments">
+                        <span class="btn-icon">📋</span>
+                        <span class="btn-text">Pay Pending Requests</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
                     <button class="menu-btn" data-screen="transactionHistory">
                         <span class="btn-icon">📜</span>
                         <span class="btn-text">View Transaction History</span>
@@ -289,6 +294,39 @@
                     </div>
 
                     <div id="paymentError" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3.5: Pay Pending Requests Screen -->
+        <div id="pendingPayments" class="screen">
+            <div class="form-container">
+                <header class="form-header">
+                    <button class="btn btn-back" id="pendingPaymentsBackBtn">← Back</button>
+                    <h1>📋 Pay Pending Requests</h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <div class="pending-requests-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Request ID</th>
+                                <th>Merchant</th>
+                                <th>Amount</th>
+                                <th>Description</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingRequestsBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noPendingMsg" class="empty-state">
+                    <p>No pending payment requests.</p>
                 </div>
             </div>
         </div>

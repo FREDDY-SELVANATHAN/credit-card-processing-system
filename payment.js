@@ -36,6 +36,9 @@ function setupPaymentForm() {
 
     document.getElementById('submitPaymentBtn')?.addEventListener('click', submitPayment);
     document.getElementById('resetPaymentBtn')?.addEventListener('click', resetPaymentForm);
+    
+    // Setup pending payments
+    setupPendingPayments();
 }
 
 /**
@@ -300,3 +303,125 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ============ PENDING PAYMENT REQUESTS ============
+
+/**
+ * Setup pending payments functionality
+ */
+function setupPendingPayments() {
+    document.getElementById('pendingPaymentsBackBtn')?.addEventListener('click', () => {
+        showScreen('customerDashboard');
+    });
+}
+
+/**
+ * Display pending payment requests for customer
+ */
+function updatePendingPaymentsTable() {
+    const tbody = document.getElementById('pendingRequestsBody');
+    const noMsg = document.getElementById('noPendingMsg');
+
+    if (!state.currentUser) {
+        noMsg.style.display = 'block';
+        tbody.innerHTML = '';
+        return;
+    }
+
+    // Get all pending requests for this customer
+    let pendingRequests = state.transactions.filter(t => 
+        t.customerId === state.currentUser.id && 
+        t.status === 'pending' &&
+        t.merchantId  // Must have a merchant ID (from merchant request)
+    );
+
+    tbody.innerHTML = '';
+
+    if (pendingRequests.length === 0) {
+        noMsg.style.display = 'block';
+        return;
+    }
+
+    noMsg.style.display = 'none';
+
+    pendingRequests.forEach(request => {
+        // Find merchant name
+        const merchant = state.merchants.find(m => m.id === request.merchantId);
+        const merchantName = merchant?.name || request.merchantId || 'Unknown Merchant';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${request.id}</td>
+            <td>${merchantName}</td>
+            <td>$${parseFloat(request.amount).toFixed(2)}</td>
+            <td>${request.description || 'N/A'}</td>
+            <td>${request.date}</td>
+            <td><button class="btn btn-primary action-btn" onclick="payPendingRequest('${request.id}')">Pay Now</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Pay a pending payment request
+ */
+function payPendingRequest(requestId) {
+    const request = state.transactions.find(t => t.id === requestId);
+    if (!request) {
+        showAlert('Payment request not found', 'error');
+        return;
+    }
+
+    // Show confirmation
+    confirmAction(
+        'Confirm Payment',
+        `Pay $${parseFloat(request.amount).toFixed(2)} to ${request.description || 'Merchant'}?`,
+        () => {
+            // Process the payment with stored card
+            processPendingPayment(requestId, request);
+        }
+    );
+}
+
+/**
+ * Process pending payment request
+ */
+function processPendingPayment(requestId, request) {
+    // Use stored card or require card entry
+    if (!state.currentCard) {
+        showAlert('Please add a credit card to your account first', 'error');
+        showScreen('paymentScreen');
+        return;
+    }
+
+    showScreen('processingScreen');
+    
+    // Simulate processing
+    setTimeout(() => {
+        const transactionId = `TXN-${String(Math.floor(Math.random() * 999999) + 1).padStart(6, '0')}`;
+        const isSuccess = Math.random() > 0.2; // 80% success rate
+        const reasons = ['Insufficient funds', 'Expired card', 'Card blocked', 'Invalid CVV'];
+        const declineReason = isSuccess ? null : reasons[Math.floor(Math.random() * reasons.length)];
+        
+        // Update the merchant request status
+        const requestIndex = state.transactions.findIndex(t => t.id === requestId);
+        if (requestIndex >= 0) {
+            if (isSuccess) {
+                state.transactions[requestIndex].status = 'success';
+                state.transactions[requestIndex].paidDate = new Date().toISOString().split('T')[0];
+                state.transactions[requestIndex].paymentId = transactionId;
+            } else {
+                state.transactions[requestIndex].status = 'failed';
+                state.transactions[requestIndex].failureReason = declineReason;
+            }
+        }
+
+        // Save updated transaction
+        saveTransaction(state.transactions[requestIndex]);
+
+        // Show result
+        showTransactionResult(isSuccess, transactionId, request.amount, declineReason);
+
+        console.log('Pending payment processed:', requestId, 'Status:', isSuccess ? 'success' : 'failed');
+    }, 2000);
+}
