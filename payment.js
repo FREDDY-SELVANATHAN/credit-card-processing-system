@@ -127,8 +127,10 @@ function loadSavedCardDetails() {
         console.log('Sender card details loaded');
     } else if (state.currentUser?.name) {
         // If no saved card, display user name
-        document.getElementById('senderCardHolder').textContent = state.currentUser.name;
-        document.getElementById('senderCardNumber').textContent = 'No card registered';
+        const senderCardHolder = document.getElementById('senderCardHolder');
+        if (senderCardHolder) senderCardHolder.textContent = state.currentUser.name;
+        const senderCardNum = document.getElementById('senderCardNumber');
+        if (senderCardNum) senderCardNum.textContent = 'No card registered';
         document.getElementById('senderCardExpiry').textContent = '--/--';
         console.log('No saved card, displaying user info');
     }
@@ -221,8 +223,8 @@ function processPayment(senderCardNumber, senderCardholderName, senderExpiryDate
         // Create transaction object with sender and receiver details
         const transaction = {
             id: transactionId,
-            customerId: state.currentUser.id,
-            userId: state.currentUser.id,
+            customerId: state.currentUser?.id || 'unknown',
+            userId: state.currentUser?.id || 'unknown',
             senderCardId: state.currentCard?.cardId || senderCardNumber.slice(-4),
             senderCardNumber: senderCardNumber,
             senderCardholderName: senderCardholderName,
@@ -309,8 +311,9 @@ function maskCardNumber(cardNumber) {
 function updateCardDetails() {
     if (!state.currentCard) {
         // If no saved card yet, use user info
-        if (state.currentUser?.name && document.getElementById('displayCardHolder')) {
-            document.getElementById('displayCardHolder').textContent = state.currentUser.name.toUpperCase();
+        if (state.currentUser?.name) {
+            const displayCardHolder = document.getElementById('displayCardHolder');
+            if (displayCardHolder) displayCardHolder.textContent = state.currentUser.name.toUpperCase();
         }
         return;
     }
@@ -371,12 +374,12 @@ function updatePendingPaymentsTable() {
         return;
     }
 
-    console.log('Looking for pending requests for customer:', state.currentUser.id);
+    console.log('Looking for pending requests for customer:', state.currentUser?.id);
     console.log('Total transactions in state:', state.transactions.length);
 
     // Get all pending requests for this customer
     let pendingRequests = state.transactions.filter(t => {
-        const isForThisCustomer = t.customerId === state.currentUser.id;
+        const isForThisCustomer = t.customerId === state.currentUser?.id;
         const isPending = t.status === 'pending';
         const hasMerchant = !!t.merchantId;
         

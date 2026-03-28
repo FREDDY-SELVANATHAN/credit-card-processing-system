@@ -52,8 +52,8 @@ function submitMerchantPayment() {
         id: requestId,
         customerId: customerId,
         customerName: customerName,
-        merchantId: state.currentUser.id,
-        merchantName: state.currentUser.name,
+        merchantId: state.currentUser?.id || 'unknown',
+        merchantName: state.currentUser?.name || 'Unknown Merchant',
         amount: parseFloat(amount),
         status: 'pending',
         date: new Date().toISOString().split('T')[0],
@@ -67,7 +67,7 @@ function submitMerchantPayment() {
     
     // IMPORTANT: Save to Firebase so customer can see it
     console.log('💾 Saving merchant payment request:', requestId);
-    console.log('   - Merchant:', state.currentUser.id);
+    console.log('   - Merchant:', state.currentUser?.id);
     console.log('   - Customer:', customerId);
     console.log('   - Amount:', amount);
     saveTransaction(transaction).then(success => {
@@ -115,7 +115,7 @@ function updateMerchantTransactionTable() {
     const searchId = document.getElementById('merchantSearchId')?.value || '';
 
     let filtered = state.transactions.filter(t => 
-        t.merchantId === state.currentUser.id &&
+        t.merchantId === state.currentUser?.id &&
         (!statusFilter || t.status === statusFilter) &&
         (!searchId || t.id.includes(searchId))
     );

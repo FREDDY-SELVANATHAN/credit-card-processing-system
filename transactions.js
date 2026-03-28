@@ -41,7 +41,7 @@ function updateTransactionTable() {
     const dateFilter = document.getElementById('filterDate')?.value || '';
 
     let filtered = state.transactions.filter(t => 
-        t.customerId === state.currentUser.id &&
+        t.customerId === state.currentUser?.id &&
         (!statusFilter || t.status === statusFilter) &&
         (!dateFilter || t.date === dateFilter)
     );
