@@ -1,3 +1,110 @@
+// ============ ADMIN USER MANAGEMENT ============
+
+/**
+ * Setup user management
+ */
+function setupUserManagement() {
+    document.getElementById('userRoleFilter')?.addEventListener('change', updateUserTable);
+    document.getElementById('userFilterResetBtn')?.addEventListener('click', () => {
+        document.getElementById('userRoleFilter').value = '';
+        updateUserTable();
+    });
+    document.getElementById('userMgmtBackBtn')?.addEventListener('click', () => {
+        showScreen('adminDashboard');
+    });
+}
+
+/**
+ * Update user management table
+ */
+function updateUserTable() {
+    const tbody = document.getElementById('userTableBody');
+    const noMsg = document.getElementById('noUsersMsg');
+    const roleFilter = document.getElementById('userRoleFilter')?.value || '';
+
+    // Get all users from Firebase
+    if (db) {
+        db.ref('users').get().then(snapshot => {
+            let allUsers = [];
+            if (snapshot.exists()) {
+                snapshot.forEach(child => {
+                    const user = child.val();
+                    allUsers.push({
+                        id: child.key,
+                        ...user
+                    });
+                });
+            }
+            renderUserTable(allUsers, roleFilter, tbody, noMsg);
+        }).catch(error => {
+            console.error('Error loading users:', error);
+            noMsg.style.display = 'block';
+        });
+    }
+}
+
+/**
+ * Render user table
+ */
+function renderUserTable(allUsers, roleFilter, tbody, noMsg) {
+    let filtered = allUsers.filter(u =>
+        !roleFilter || u.role === roleFilter
+    );
+
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        noMsg.style.display = 'block';
+        return;
+    }
+
+    noMsg.style.display = 'none';
+
+    filtered.forEach(user => {
+        const row = document.createElement('tr');
+        const joinDate = new Date(user.createdAt).toLocaleDateString();
+        const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never';
+        
+        row.innerHTML = `
+            <td>${user.id}</td>
+            <td>${user.name || 'N/A'}</td>
+            <td>${user.email || 'N/A'}</td>
+            <td>${user.username || 'N/A'}</td>
+            <td><span class="status-badge ${user.role}">${user.role.charAt(0).toUpperCase() + user.role.slice(1)}</span></td>
+            <td>${joinDate}</td>
+            <td>${lastLogin}</td>
+            <td><button class="btn btn-primary action-btn" onclick="viewUserDetail('${user.id}')">View</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * View user details
+ */
+function viewUserDetail(userId) {
+    db.ref(`users/${userId}`).get().then(snapshot => {
+        if (snapshot.exists()) {
+            const user = snapshot.val();
+            const detailsHTML = `
+                <div style="text-align: left; margin: 15px 0;">
+                    <p><strong>User ID:</strong> ${user.id}</p>
+                    <p><strong>Name:</strong> ${user.name || 'N/A'}</p>
+                    <p><strong>Email:</strong> ${user.email || 'N/A'}</p>
+                    <p><strong>Username:</strong> ${user.username || 'N/A'}</p>
+                    <p><strong>Role:</strong> ${user.role}</p>
+                    <p><strong>Auth Method:</strong> ${user.authMethod || 'Standard'}</p>
+                    <p><strong>Joined:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+                    <p><strong>Last Login:</strong> ${user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}</p>
+                </div>
+            `;
+            showAlert(detailsHTML, 'info');
+        }
+    }).catch(error => {
+        showAlert('Error loading user details: ' + error.message, 'error');
+    });
+}
+
 // ============ ADMIN CARD MANAGEMENT & REPORTS ============
 
 /**

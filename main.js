@@ -43,6 +43,7 @@ setupMerchantPaymentForm();
 setupTransactionHistory();
 setupMerchantTransactions();
 setupAdminTransactions();
+setupUserManagement();
 setupCardManagement();
 setupReports();
 setupAlerts();
