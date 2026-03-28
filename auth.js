@@ -538,20 +538,24 @@ async function handleAuthResult(user, isNewUser) {
 }
 
 /**
- * Prompt user to create password and add credit card for Google account
+ * Prompt user to create password for Google account (NO credit card here)
  */
 function promptForGooglePassword(userID, userName, userEmail, userType = 'new') {
+    // Escape special characters for safe HTML insertion
+    const escapedUserName = (userName || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
+    const escapedEmail = (userEmail || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
+    
     const modal = document.createElement('div');
     modal.className = 'role-selection-modal';
     modal.id = 'googleAuthModal';
     modal.innerHTML = `
         <div class="modal-overlay">
-            <div class="modal-content" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-content" style="max-width: 500px;">
                 <h3>${userType === 'existing' ? 'Sign In to Your Account' : 'Create App Account'}</h3>
                 <p style="color: #666; margin-bottom: 20px;">
                     ${userType === 'existing' 
-                        ? `Welcome back, <strong>${userName}</strong>!<br><br>Enter your app password to continue.` 
-                        : `Create your account details<br><strong>${userEmail}</strong>`}
+                        ? `Welcome back, <strong>${escapedUserName}</strong>!<br><br>Enter your app password to continue.` 
+                        : `Create your account details<br><strong>${escapedEmail}</strong>`}
                 </p>
                 
                 ${userType === 'new' ? `
@@ -587,67 +591,23 @@ function promptForGooglePassword(userID, userName, userEmail, userType = 'new') 
                 </div>
                 ` : ''}
                 
-                <!-- Credit Card Section -->
-                <div style="border-top: 2px solid #e0e0e0; padding-top: 20px; margin-top: 20px;">
-                    <h4 style="margin-bottom: 15px; color: #333;">Credit Card Details</h4>
-                    
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="googleCardNumber">Card Number</label>
-                        <input type="text" id="googleCardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
-                        <div id="googleCardError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="googleCardholderName">Cardholder Name</label>
-                        <input type="text" id="googleCardholderName" placeholder="Full name as on card" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
-                        <div id="googleCardholderError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div class="form-group">
-                            <label for="googleExpiryDate">Expiry Date (MM/YY)</label>
-                            <input type="text" id="googleExpiryDate" placeholder="MM/YY" maxlength="5" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
-                            <div id="googleExpiryError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
-                        </div>
-                        <div class="form-group">
-                            <label for="googleCVV">CVV</label>
-                            <div style="position: relative;">
-                                <input type="password" id="googleCVV" placeholder="***" maxlength="4" required style="padding: 10px 40px 10px 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
-                                <i class="fas fa-eye" onclick="toggleGooglePasswordVisibility('googleCVV')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #666;"></i>
-                            </div>
-                            <div id="googleCVVError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <button onclick="completeGoogleAuthWithPassword('${userID}', '${userName}', '${userEmail}', '${userType}')" class="btn btn-primary btn-block" style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 20px;">
+                <button id="continueBtn" class="btn btn-primary btn-block" style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 20px;">
                     ${userType === 'existing' ? 'Sign In' : 'Continue'}
                 </button>
-                <button onclick="document.getElementById('googleAuthModal').remove()" class="btn" style="padding: 10px; margin-top: 10px; background: #f8f9fa; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600;">Cancel</button>
+                <button id="cancelBtn" class="btn" style="padding: 10px; margin-top: 10px; background: #f8f9fa; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600;">Cancel</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
 
-    // Setup card number formatting
-    document.getElementById('googleCardNumber').addEventListener('input', (e) => {
-        let value = e.target.value.replace(/\s/g, '');
-        let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
-        e.target.value = formatted;
+    // Add event listeners instead of inline onclick (safer and more reliable)
+    document.getElementById('continueBtn').addEventListener('click', () => {
+        continueGoogleAuth(userID, userName, userEmail, userType);
     });
-
-    // Setup expiry date formatting
-    document.getElementById('googleExpiryDate').addEventListener('input', (e) => {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length >= 2) {
-            value = value.slice(0, 2) + '/' + value.slice(2, 4);
-        }
-        e.target.value = value;
-    });
-
-    // Setup CVV to only accept numbers
-    document.getElementById('googleCVV').addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/\D/g, '');
+    
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+        const modalEl = document.getElementById('googleAuthModal');
+        if (modalEl) modalEl.remove();
     });
 
     // Add validation listeners for new users
@@ -712,9 +672,9 @@ function updateGooglePasswordRequirements(password) {
 }
 
 /**
- * Complete Google authentication with password
+ * Continue Google auth after password validation
  */
-async function completeGoogleAuthWithPassword(userID, userName, userEmail, userType) {
+async function continueGoogleAuth(userID, userName, userEmail, userType = 'new') {
     const passwordInput = document.getElementById('googlePassword');
     const password = passwordInput?.value || '';
     const passwordError = document.getElementById('passwordError');
@@ -793,87 +753,15 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
             return;
         }
 
-        // ============ VALIDATE CREDIT CARD ============
-        const cardNumber = document.getElementById('googleCardNumber')?.value.replace(/\s/g, '') || '';
-        const cardholderName = document.getElementById('googleCardholderName')?.value.trim() || '';
-        const expiryDate = document.getElementById('googleExpiryDate')?.value.trim() || '';
-        const cvv = document.getElementById('googleCVV')?.value.trim() || '';
-
-        const googleCardError = document.getElementById('googleCardError');
-        const googleCardholderError = document.getElementById('googleCardholderError');
-        const googleExpiryError = document.getElementById('googleExpiryError');
-        const googleCVVError = document.getElementById('googleCVVError');
-
-        let isCardValid = true;
-
-        if (!validateCardNumber(cardNumber)) {
-            if (googleCardError) {
-                googleCardError.textContent = 'Invalid card number (Luhn validation)';
-                googleCardError.style.display = 'block';
-            }
-            isCardValid = false;
-        }
-
-        if (!cardholderName) {
-            if (googleCardholderError) {
-                googleCardholderError.textContent = 'Cardholder name is required';
-                googleCardholderError.style.display = 'block';
-            }
-            isCardValid = false;
-        }
-
-        if (!validateExpiryDate(expiryDate)) {
-            if (googleExpiryError) {
-                googleExpiryError.textContent = 'Invalid expiry date (MM/YY)';
-                googleExpiryError.style.display = 'block';
-            }
-            isCardValid = false;
-        }
-
-        if (!validateCVV(cvv)) {
-            if (googleCVVError) {
-                googleCVVError.textContent = 'Invalid CVV (3-4 digits)';
-                googleCVVError.style.display = 'block';
-            }
-            isCardValid = false;
-        }
-
-        if (!isCardValid) {
-            return;
-        }
-
-        // Save new Google user with password, username & credit card
-        const newUser = {
-            id: userID,
-            email: userEmail,
-            username: username,
-            name: userName,
-            password: password,
-            authMethod: 'google',
-            cardId: cardNumber.slice(-4),
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString()
-        };
-
-        // Credit card data
-        const cardData = {
-            cardId: cardNumber.slice(-4),
-            cardNumber: cardNumber,
-            cardholderName: cardholderName,
-            expiryDate: expiryDate,
-            cvv: cvv,
-            userId: userID,
-            status: 'active',
-            createdAt: new Date().toISOString()
-        };
-
+        // Validation passed - proceed to role selection
         try {
-            // First prompt for role
             const modal = document.getElementById('googleAuthModal');
             if (modal) modal.remove();
-            promptForGoogleRole(userID, userName, userEmail, password, newUser, cardData);
+            
+            // Store credentials and proceed to role selection (without card data yet)
+            promptForGoogleRoleSelection(userID, userName, userEmail, password, username);
         } catch (error) {
-            console.error('Error completing Google signup:', error);
+            console.error('Error continuing Google signup:', error);
             if (passwordError) {
                 passwordError.textContent = 'Error: ' + error.message;
                 passwordError.style.display = 'block';
@@ -891,12 +779,24 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
                     state.currentUser = existingUser;
                     state.currentRole = existingUser.role;
                     
+                    // Load card if customer
+                    if (existingUser.role === 'customer') {
+                        try {
+                            const cardSnapshot = await db.ref(`cards/${userID}`).get();
+                            if (cardSnapshot.exists()) {
+                                state.currentCard = cardSnapshot.val();
+                            }
+                        } catch (error) {
+                            console.warn('Error loading card:', error);
+                        }
+                    }
+                    
                     // Update last login
                     await db.ref(`users/${userID}`).update({
                         lastLogin: new Date().toISOString()
                     });
                     
-                    const modal = document.querySelector('.role-selection-modal');
+                    const modal = document.getElementById('googleAuthModal');
                     if (modal) modal.remove();
                     
                     loginSuccess(existingUser.name, existingUser.role);
@@ -919,54 +819,9 @@ async function completeGoogleAuthWithPassword(userID, userName, userEmail, userT
 }
 
 /**
- * Prompt user to select role after Google signup with credit card
+ * Prompt for role selection (Google signup)
  */
-function promptForGoogleRole(userID, userName, userEmail, password, userData, cardData) {
-    // Store the data globally so we can access it safely
-    window.googleAuthData = {
-        userID: userID,
-        userName: userName,
-        userEmail: userEmail,
-        password: password,
-        username: userData.username,
-        cardData: cardData
-    };
-    
-    const roleSelection = document.createElement('div');
-    roleSelection.className = 'role-selection-modal';
-    roleSelection.id = 'roleSelectionModal';
-    roleSelection.innerHTML = `
-        <div class="modal-overlay">
-            <div class="modal-content">
-                <h3>Select Your Role</h3>
-                <p>Choose your role in the Credit Card Processing System</p>
-                <div class="role-selection" style="margin-bottom: 20px;">
-                    <button class="role-btn" onclick="completeGoogleLogin('customer')">
-                        <span class="role-icon">👤</span>
-                        <span class="role-name">Customer</span>
-                    </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('merchant')">
-                        <span class="role-icon">🏪</span>
-                        <span class="role-name">Merchant</span>
-                    </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('admin')">
-                        <span class="role-icon">🏦</span>
-                        <span class="role-name">Admin</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(roleSelection);
-}
-
-/**
- * Prompt user to select role (for existing users)
- */
-function promptForRole(userID, userName, userEmail, password = null, userData = null) {
-    const username = userData?.username || '';
-    
-    // Store the data globally so we can access it safely
+function promptForGoogleRoleSelection(userID, userName, userEmail, password, username) {
     window.googleAuthData = {
         userID: userID,
         userName: userName,
@@ -975,24 +830,24 @@ function promptForRole(userID, userName, userEmail, password = null, userData = 
         username: username
     };
     
-    const roleSelection = document.createElement('div');
-    roleSelection.className = 'role-selection-modal';
-    roleSelection.id = 'roleSelectionModal';
-    roleSelection.innerHTML = `
+    const roleModal = document.createElement('div');
+    roleModal.className = 'role-selection-modal';
+    roleModal.id = 'googleRoleModal';
+    roleModal.innerHTML = `
         <div class="modal-overlay">
             <div class="modal-content">
                 <h3>Select Your Role</h3>
                 <p>Choose your role in the Credit Card Processing System</p>
                 <div class="role-selection" style="margin-bottom: 20px;">
-                    <button class="role-btn" onclick="completeGoogleLogin('customer')">
+                    <button class="role-btn role-customer-btn">
                         <span class="role-icon">👤</span>
                         <span class="role-name">Customer</span>
                     </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('merchant')">
+                    <button class="role-btn role-merchant-btn">
                         <span class="role-icon">🏪</span>
                         <span class="role-name">Merchant</span>
                     </button>
-                    <button class="role-btn" onclick="completeGoogleLogin('admin')">
+                    <button class="role-btn role-admin-btn">
                         <span class="role-icon">🏦</span>
                         <span class="role-name">Admin</span>
                     </button>
@@ -1000,7 +855,244 @@ function promptForRole(userID, userName, userEmail, password = null, userData = 
             </div>
         </div>
     `;
-    document.body.appendChild(roleSelection);
+    document.body.appendChild(roleModal);
+    
+    // Add event listeners
+    document.querySelector('.role-customer-btn').addEventListener('click', () => proceedGoogleSignup('customer'));
+    document.querySelector('.role-merchant-btn').addEventListener('click', () => proceedGoogleSignup('merchant'));
+    document.querySelector('.role-admin-btn').addEventListener('click', () => proceedGoogleSignup('admin'));
+}
+
+/**
+ * Proceed with Google signup (show credit card form ONLY for customers)
+ */
+function proceedGoogleSignup(role) {
+    const data = window.googleAuthData;
+    
+    const modal = document.getElementById('googleRoleModal');
+    if (modal) modal.remove();
+    
+    // Only show credit card modal for customers
+    if (role === 'customer') {
+        promptForGoogleCreditCard(data.userID, data.userName, data.userEmail, data.password, data.username, role);
+    } else {
+        // For merchant/admin, complete signup directly
+        completeGoogleSignup(data.userID, data.userName, data.userEmail, data.password, data.username, role, null);
+    }
+}
+
+/**
+ * Prompt for credit card (ONLY for customers)
+ */
+function promptForGoogleCreditCard(userID, userName, userEmail, password, username, role) {
+    // Store card form data globally for access in event handlers
+    window.googleCardData = {
+        userID: userID,
+        userName: userName,
+        userEmail: userEmail,
+        password: password,
+        username: username,
+        role: role
+    };
+    
+    const cardModal = document.createElement('div');
+    cardModal.className = 'role-selection-modal';
+    cardModal.id = 'googleCardModal';
+    cardModal.innerHTML = `
+        <div class="modal-overlay">
+            <div class="modal-content" style="max-width: 500px;">
+                <h3>Add Credit Card</h3>
+                <p style="color: #666; margin-bottom: 20px;">As a customer, please add your credit card for transactions</p>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="googleCardNumber">Card Number</label>
+                    <input type="text" id="googleCardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                    <div id="googleCardError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="googleCardholderName">Cardholder Name</label>
+                    <input type="text" id="googleCardholderName" placeholder="Full name as on card" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                    <div id="googleCardholderError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="googleExpiryDate">Expiry Date (MM/YY)</label>
+                        <input type="text" id="googleExpiryDate" placeholder="MM/YY" maxlength="5" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                        <div id="googleExpiryError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="googleCVV">CVV</label>
+                        <div style="position: relative;">
+                            <input type="password" id="googleCVV" placeholder="***" maxlength="4" required style="padding: 10px 40px 10px 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 1rem;">
+                            <i class="fas fa-eye" onclick="toggleGooglePasswordVisibility('googleCVV')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #666;"></i>
+                        </div>
+                        <div id="googleCVVError" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;"></div>
+                    </div>
+                </div>
+                
+                <button id="completeSignupBtn" class="btn btn-primary btn-block" style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 20px;">Complete Signup</button>
+                <button id="backToRoleBtn" class="btn" style="padding: 10px; margin-top: 10px; background: #f8f9fa; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600;">Back</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(cardModal);
+
+    // Setup card number formatting
+    document.getElementById('googleCardNumber').addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\s/g, '');
+        let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+        e.target.value = formatted;
+    });
+
+    // Setup expiry date formatting
+    document.getElementById('googleExpiryDate').addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+        }
+        e.target.value = value;
+    });
+
+    // Setup CVV to only accept numbers
+    document.getElementById('googleCVV').addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
+    
+    // Add event listeners for buttons
+    document.getElementById('completeSignupBtn').addEventListener('click', () => {
+        const data = window.googleCardData;
+        completeGoogleWithCard(data.userID, data.userName, data.userEmail, data.password, data.username, data.role);
+    });
+    
+    document.getElementById('backToRoleBtn').addEventListener('click', () => {
+        const modal = document.getElementById('googleCardModal');
+        if (modal) modal.remove();
+        
+        const data = window.googleCardData;
+        promptForGoogleRoleSelection(data.userID, data.userName, data.userEmail, data.password, data.username);
+    });
+}
+
+/**
+ * Complete Google signup with credit card
+ */
+async function completeGoogleWithCard(userID, userName, userEmail, password, username, role) {
+    const cardNumber = document.getElementById('googleCardNumber')?.value.replace(/\s/g, '') || '';
+    const cardholderName = document.getElementById('googleCardholderName')?.value.trim() || '';
+    const expiryDate = document.getElementById('googleExpiryDate')?.value.trim() || '';
+    const cvv = document.getElementById('googleCVV')?.value.trim() || '';
+
+    const googleCardError = document.getElementById('googleCardError');
+    const googleCardholderError = document.getElementById('googleCardholderError');
+    const googleExpiryError = document.getElementById('googleExpiryError');
+    const googleCVVError = document.getElementById('googleCVVError');
+
+    // Clear errors first
+    if (googleCardError) googleCardError.style.display = 'none';
+    if (googleCardholderError) googleCardholderError.style.display = 'none';
+    if (googleExpiryError) googleExpiryError.style.display = 'none';
+    if (googleCVVError) googleCVVError.style.display = 'none';
+
+    let isCardValid = true;
+
+    if (!validateCardNumber(cardNumber)) {
+        if (googleCardError) {
+            googleCardError.textContent = 'Invalid card number (Luhn validation)';
+            googleCardError.style.display = 'block';
+        }
+        isCardValid = false;
+    }
+
+    if (!cardholderName) {
+        if (googleCardholderError) {
+            googleCardholderError.textContent = 'Cardholder name is required';
+            googleCardholderError.style.display = 'block';
+        }
+        isCardValid = false;
+    }
+
+    if (!validateExpiryDate(expiryDate)) {
+        if (googleExpiryError) {
+            googleExpiryError.textContent = 'Invalid expiry date (MM/YY)';
+            googleExpiryError.style.display = 'block';
+        }
+        isCardValid = false;
+    }
+
+    if (!validateCVV(cvv)) {
+        if (googleCVVError) {
+            googleCVVError.textContent = 'Invalid CVV (3-4 digits)';
+            googleCVVError.style.display = 'block';
+        }
+        isCardValid = false;
+    }
+
+    if (!isCardValid) {
+        return;
+    }
+
+    // Credit card data
+    const cardData = {
+        cardId: cardNumber.slice(-4),
+        cardNumber: cardNumber,
+        cardholderName: cardholderName,
+        expiryDate: expiryDate,
+        cvv: cvv,
+        userId: userID,
+        status: 'active',
+        createdAt: new Date().toISOString()
+    };
+
+    completeGoogleSignup(userID, userName, userEmail, password, username, role, cardData);
+}
+
+/**
+ * Complete Google signup (save to Firebase)
+ */
+async function completeGoogleSignup(userID, userName, userEmail, password, username, role, cardData) {
+    const newUser = {
+        id: userID,
+        email: userEmail,
+        username: username,
+        name: userName,
+        password: password,
+        role: role,
+        authMethod: 'google',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+    };
+
+    if (role === 'customer' && cardData) {
+        newUser.cardId = cardData.cardId;
+    }
+
+    try {
+        // Save user
+        await db.ref(`users/${userID}`).set(newUser);
+        console.log('User saved:', {userID, username, role});
+
+        // Save card if customer
+        if (role === 'customer' && cardData) {
+            await db.ref(`cards/${userID}`).set(cardData);
+            console.log('Card saved for customer:', userID);
+            state.currentCard = cardData;
+        }
+    } catch (error) {
+        console.error('Error saving user:', error);
+    }
+
+    state.currentUser = newUser;
+    state.currentRole = role;
+
+    // Remove modal
+    const modal = document.getElementById('googleCardModal') || document.getElementById('googleRoleModal');
+    if (modal) modal.remove();
+
+    delete window.googleAuthData;
+
+    loginSuccess(userName, role);
 }
 
 /**
