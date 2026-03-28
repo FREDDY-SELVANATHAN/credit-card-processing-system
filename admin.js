@@ -173,6 +173,11 @@ function setupCardManagement() {
         updateCardTable();
     });
 
+    document.getElementById('cardMgmtBackBtn')?.addEventListener('click', () => {
+        updateAdminDashboard();
+        showScreen('adminDashboard');
+    });
+
     document.getElementById('closeCardActionModal')?.addEventListener('click', closeCardActionModal);
     document.getElementById('blockCardBtn')?.addEventListener('click', blockCard);
     document.getElementById('unblockCardBtn')?.addEventListener('click', unblockCard);
@@ -378,6 +383,11 @@ function showCardActionMessage(message) {
 function setupReports() {
     document.getElementById('generateReportBtn')?.addEventListener('click', generateReport);
     document.getElementById('downloadReportBtn')?.addEventListener('click', downloadReport);
+    
+    document.getElementById('reportsBackBtn')?.addEventListener('click', () => {
+        updateAdminDashboard();
+        showScreen('adminDashboard');
+    });
     
     // Load failed logs
     const observer = new MutationObserver((mutations) => {

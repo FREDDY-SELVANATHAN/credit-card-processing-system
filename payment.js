@@ -442,7 +442,7 @@ function payPendingRequest(requestId) {
 /**
  * Process pending payment request
  */
-function processPendingPayment(requestId, request) {
+async function processPendingPayment(requestId, request) {
     // Use stored card or require card entry
     if (!state.currentCard) {
         showAlert('Please add a credit card to your account first', 'error');
@@ -453,31 +453,46 @@ function processPendingPayment(requestId, request) {
     showScreen('processingScreen');
     
     // Simulate processing
-    setTimeout(() => {
-        const transactionId = `TXN-${String(Math.floor(Math.random() * 999999) + 1).padStart(6, '0')}`;
-        const isSuccess = Math.random() > 0.2; // 80% success rate
-        const reasons = ['Insufficient funds', 'Expired card', 'Card blocked', 'Invalid CVV'];
-        const declineReason = isSuccess ? null : reasons[Math.floor(Math.random() * reasons.length)];
-        
-        // Update the merchant request status
-        const requestIndex = state.transactions.findIndex(t => t.id === requestId);
-        if (requestIndex >= 0) {
-            if (isSuccess) {
-                state.transactions[requestIndex].status = 'success';
-                state.transactions[requestIndex].paidDate = new Date().toISOString().split('T')[0];
-                state.transactions[requestIndex].paymentId = transactionId;
-            } else {
-                state.transactions[requestIndex].status = 'failed';
-                state.transactions[requestIndex].failureReason = declineReason;
+    setTimeout(async () => {
+        try {
+            const transactionId = `TXN-${String(Math.floor(Math.random() * 999999) + 1).padStart(6, '0')}`;
+            const isSuccess = Math.random() > 0.2; // 80% success rate
+            const reasons = ['Insufficient funds', 'Expired card', 'Card blocked', 'Invalid CVV'];
+            const declineReason = isSuccess ? null : reasons[Math.floor(Math.random() * reasons.length)];
+            
+            // Update the merchant request status
+            const requestIndex = state.transactions.findIndex(t => t.id === requestId);
+            if (requestIndex >= 0) {
+                if (isSuccess) {
+                    state.transactions[requestIndex].status = 'success';
+                    state.transactions[requestIndex].paidDate = new Date().toISOString().split('T')[0];
+                    state.transactions[requestIndex].paymentId = transactionId;
+                } else {
+                    state.transactions[requestIndex].status = 'failed';
+                    state.transactions[requestIndex].failureReason = declineReason;
+                }
             }
+
+            // Save updated transaction to Firebase
+            if (requestIndex >= 0 && state.transactions[requestIndex]) {
+                const saved = await saveTransaction(state.transactions[requestIndex]);
+                if (!saved) {
+                    console.error('Failed to save transaction to Firebase');
+                }
+            }
+
+            // Show result
+            showTransactionResult(isSuccess, transactionId, request.amount, declineReason);
+
+            // Refresh pending payments list after a short delay
+            setTimeout(() => {
+                updatePendingPaymentsTable();
+            }, 1500);
+
+            console.log('Pending payment processed:', requestId, 'Status:', isSuccess ? 'success' : 'failed');
+        } catch (error) {
+            console.error('Error processing pending payment:', error);
+            showAlert('Error processing payment. Please try again.', 'error');
         }
-
-        // Save updated transaction
-        saveTransaction(state.transactions[requestIndex]);
-
-        // Show result
-        showTransactionResult(isSuccess, transactionId, request.amount, declineReason);
-
-        console.log('Pending payment processed:', requestId, 'Status:', isSuccess ? 'success' : 'failed');
     }, 2000);
 }
