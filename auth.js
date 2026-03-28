@@ -248,7 +248,9 @@ async function handleRegistration() {
         isCardValid = false;
     }
 
-    if (!cardholderName) {
+    // Auto-fill cardholder name with full name if empty
+    const finalCardholderName = cardholderName.trim() || fullName;
+    if (!finalCardholderName) {
         showValidationError('regCardholderMsg', 'Cardholder name is required');
         isCardValid = false;
     }
@@ -333,7 +335,7 @@ async function handleRegistration() {
         const cardData = {
             cardId: cardId,
             cardNumber: cardNumber,
-            cardholderName: cardholderName,
+            cardholderName: finalCardholderName,
             expiryDate: expiryDate,
             cvv: cvv,
             userId: userId,
@@ -1005,7 +1007,9 @@ async function completeGoogleWithCard(userID, userName, userEmail, password, use
         isCardValid = false;
     }
 
-    if (!cardholderName) {
+    // Auto-fill cardholder name with user's name if empty
+    const finalCardholderName = cardholderName || userName;
+    if (!finalCardholderName) {
         if (googleCardholderError) {
             googleCardholderError.textContent = 'Cardholder name is required';
             googleCardholderError.style.display = 'block';
@@ -1037,7 +1041,7 @@ async function completeGoogleWithCard(userID, userName, userEmail, password, use
     const cardData = {
         cardId: cardNumber.slice(-4),
         cardNumber: cardNumber,
-        cardholderName: cardholderName,
+        cardholderName: finalCardholderName,
         expiryDate: expiryDate,
         cvv: cvv,
         userId: userID,
@@ -1078,6 +1082,10 @@ async function completeGoogleSignup(userID, userName, userEmail, password, usern
             await db.ref(`cards/${userID}`).set(cardData);
             console.log('Card saved for customer:', userID);
             state.currentCard = cardData;
+            // Update card display
+            if (typeof updateCardDetails === 'function') {
+                updateCardDetails();
+            }
         }
     } catch (error) {
         console.error('Error saving user:', error);

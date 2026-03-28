@@ -50,7 +50,7 @@ function loadSavedCardDetails() {
         
         // Populate form with saved card details
         document.getElementById('cardNumber').value = maskedCard;
-        document.getElementById('cardholderName').value = state.currentCard.cardholderName;
+        document.getElementById('cardholderName').value = state.currentCard.cardholderName || state.currentUser?.name || '';
         document.getElementById('expiryDate').value = state.currentCard.expiryDate;
         document.getElementById('cvv').value = '***'; // For security, don't display actual CVV
         
@@ -60,7 +60,15 @@ function loadSavedCardDetails() {
         document.getElementById('expiryDate').readOnly = true;
         document.getElementById('cvv').readOnly = true;
         
-        console.log('Saved card details loaded');
+        console.log('Saved card details loaded with name:', document.getElementById('cardholderName').value);
+    } else if (state.currentUser?.name) {
+        // Auto-fill cardholder name with user's name if no saved card
+        document.getElementById('cardholderName').value = state.currentUser.name;
+        document.getElementById('cardholderName').readOnly = false;
+        document.getElementById('cardNumber').readOnly = false;
+        document.getElementById('expiryDate').readOnly = false;
+        document.getElementById('cvv').readOnly = false;
+        console.log('Pre-filled cardholder name with user name:', state.currentUser.name);
     }
 }
 
@@ -234,16 +242,28 @@ function maskCardNumber(cardNumber) {
 }
 
 /**
- * Update card details display
+ * Update card details display with current user and card info
  */
 function updateCardDetails() {
-    const card = state.cards[0]; // Demo: show first card
+    if (!state.currentCard) {
+        // If no saved card yet, use user info
+        if (state.currentUser?.name) {
+            document.getElementById('displayCardHolder').textContent = state.currentUser.name.toUpperCase();
+        }
+        return;
+    }
+    
+    const card = state.currentCard;
+    const cardholderName = card.cardholderName || state.currentUser?.name || 'CARDHOLDER';
+    
     document.getElementById('displayCardNumber').textContent = maskCardNumber(card.cardNumber);
-    document.getElementById('displayCardHolder').textContent = card.holder.toUpperCase();
-    document.getElementById('displayExpiry').textContent = card.expiry;
-    document.getElementById('creditLimit').textContent = `$${card.limit.toFixed(2)}`;
-    document.getElementById('availableCredit').textContent = `$${(card.limit - card.balance).toFixed(2)}`;
-    document.getElementById('currentBalance').textContent = `$${card.balance.toFixed(2)}`;
+    document.getElementById('displayCardHolder').textContent = cardholderName.toUpperCase();
+    document.getElementById('displayExpiry').textContent = card.expiryDate || '00/00';
+    document.getElementById('creditLimit').textContent = `$${card.limit ? card.limit.toFixed(2) : '0.00'}`;
+    document.getElementById('availableCredit').textContent = `$${card.availableCredit ? card.availableCredit.toFixed(2) : '0.00'}`;
+    document.getElementById('currentBalance').textContent = `$${card.balance ? card.balance.toFixed(2) : '0.00'}`;
+    
+    console.log('Card details updated with cardholder:', cardholderName);
 }
 
 // Initialize card details update when screen is shown
