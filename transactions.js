@@ -50,12 +50,23 @@ function updateTransactionTable() {
 
     filtered.forEach(trans => {
         const row = document.createElement('tr');
-        const maskedCard = trans.cardNumber ? `**** **** **** ${trans.cardNumber.slice(-4)}` : 'N/A';
+        // Show receiver card for regular payments, sender card for merchant requests
+        let displayCard = 'N/A';
+        let displayName = trans.description || 'N/A';
+        
+        if (trans.receiverCardNumber) {
+            displayCard = `**** **** **** ${trans.receiverCardNumber.slice(-4)}`;
+            displayName = trans.receiverName || 'Unknown Receiver';
+        } else if (trans.cardNumber) {
+            displayCard = `**** **** **** ${trans.cardNumber.slice(-4)}`;
+            displayName = trans.cardholderName || 'N/A';
+        }
+        
         row.innerHTML = `
             <td>${trans.id}</td>
             <td>${trans.date}</td>
             <td>$${parseFloat(trans.amount).toFixed(2)}</td>
-            <td>${maskedCard}</td>
+            <td>${displayCard}</td>
             <td><span class="status-badge ${trans.status}">${trans.status.charAt(0).toUpperCase() + trans.status.slice(1)}</span></td>
             <td><button class="btn btn-primary action-btn" onclick="viewTransactionDetail('${trans.id}')">View</button></td>
         `;
@@ -64,24 +75,43 @@ function updateTransactionTable() {
 }
 
 /**
- * View transaction details with card information
+ * View transaction details with sender and receiver card information
  */
 function viewTransactionDetail(transactionId) {
     const trans = state.transactions.find(t => t.id === transactionId);
     if (trans) {
-        const maskedCard = trans.cardNumber ? `**** **** **** ${trans.cardNumber.slice(-4)}` : 'N/A';
-        const detailsHTML = `
+        let detailsHTML = `
             <div style="text-align: left; margin: 15px 0;">
                 <p><strong>Transaction ID:</strong> ${trans.id}</p>
                 <p><strong>Date:</strong> ${trans.date}</p>
                 <p><strong>Amount:</strong> $${parseFloat(trans.amount).toFixed(2)}</p>
-                <p><strong>Card Used:</strong> ${maskedCard}</p>
-                <p><strong>Cardholder:</strong> ${trans.cardholderName || 'N/A'}</p>
                 <p><strong>Status:</strong> ${trans.status.toUpperCase()}</p>
-                <p><strong>Description:</strong> ${trans.description || 'N/A'}</p>
-                ${trans.failureReason ? `<p><strong>Failure Reason:</strong> ${trans.failureReason}</p>` : ''}
-            </div>
-        `;
+                <p><strong>Description:</strong> ${trans.description || 'N/A'}</p>`;
+        
+        // Show sender card details if available
+        if (trans.senderCardNumber) {
+            const senderMaskedCard = `**** **** **** ${trans.senderCardNumber.slice(-4)}`;
+            detailsHTML += `
+                <hr style="margin: 10px 0;">
+                <p><strong>Sender Card:</strong> ${senderMaskedCard}</p>
+                <p><strong>Sender Name:</strong> ${trans.senderCardholderName || 'N/A'}</p>`;
+        }
+        
+        // Show receiver card details if available
+        if (trans.receiverCardNumber) {
+            const receiverMaskedCard = `**** **** **** ${trans.receiverCardNumber.slice(-4)}`;
+            detailsHTML += `
+                <hr style="margin: 10px 0;">
+                <p><strong>Receiver Card:</strong> ${receiverMaskedCard}</p>
+                <p><strong>Receiver Name:</strong> ${trans.receiverName || 'N/A'}</p>`;
+        }
+        
+        // Show failure reason if applicable
+        if (trans.failureReason) {
+            detailsHTML += `<p><strong style="color: red;">Failure Reason:</strong> ${trans.failureReason}</p>`;
+        }
+        
+        detailsHTML += `</div>`;
         showAlert(detailsHTML, 'info');
     }
 }

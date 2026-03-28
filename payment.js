@@ -37,67 +37,107 @@ function setupPaymentForm() {
     document.getElementById('submitPaymentBtn')?.addEventListener('click', submitPayment);
     document.getElementById('resetPaymentBtn')?.addEventListener('click', resetPaymentForm);
     
+    // Setup return to dashboard button - ONLY ONCE
+    setupReturnDashboardBtn();
+    
     // Setup pending payments
     setupPendingPayments();
+}
+
+/**
+ * Setup return to dashboard button
+ */
+function setupReturnDashboardBtn() {
+    const btn = document.getElementById('returnDashboardBtn');
+    if (!btn) return;
+    
+    // Remove any previous listeners by cloning
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    // Add listener only once
+    document.getElementById('returnDashboardBtn')?.addEventListener('click', () => {
+        console.log('Return to Dashboard clicked');
+        
+        try {
+            // Reset payment form - receiver card fields
+            const receiverNameInput = document.getElementById('receiverName');
+            const receiverCardInput = document.getElementById('receiverCardNumber');
+            const receiverExpiryInput = document.getElementById('receiverExpiryDate');
+            const receiverCVVInput = document.getElementById('receiverCVV');
+            const amountInput = document.getElementById('amount');
+            const descInput = document.getElementById('description');
+            
+            if (receiverNameInput) receiverNameInput.value = '';
+            if (receiverCardInput) receiverCardInput.value = '';
+            if (receiverExpiryInput) receiverExpiryInput.value = '';
+            if (receiverCVVInput) receiverCVVInput.value = '';
+            if (amountInput) amountInput.value = '';
+            if (descInput) descInput.value = '';
+            
+            // Clear validation messages
+            clearValidationMessages();
+            
+            // Hide result, show processing indicator
+            const resultContent = document.getElementById('resultContent');
+            const processingIndicator = document.getElementById('processingIndicator');
+            if (resultContent) resultContent.classList.add('hidden');
+            if (processingIndicator) processingIndicator.classList.remove('hidden');
+            
+            // Clear decline reason display
+            const declineReasonRow = document.getElementById('declineReasonRow');
+            if (declineReasonRow) declineReasonRow.classList.add('hidden');
+            
+            console.log('Payment form reset, navigating to dashboard');
+        } catch (error) {
+            console.warn('Error resetting form:', error);
+        }
+        
+        // Navigate to dashboard
+        showScreen('customerDashboard');
+    });
+}
+    });
 }
 
 /**
  * Reset payment form
  */
 function resetPaymentForm() {
-    document.getElementById('cardNumber').value = '';
-    document.getElementById('cardholderName').value = '';
-    document.getElementById('expiryDate').value = '';
-    document.getElementById('cvv').value = '';
+    document.getElementById('receiverName').value = '';
+    document.getElementById('receiverCardNumber').value = '';
+    document.getElementById('receiverExpiryDate').value = '';
+    document.getElementById('receiverCVV').value = '';
     document.getElementById('amount').value = '';
     document.getElementById('description').value = '';
-    
-    // Reset readonly state
-    document.getElementById('cardNumber').readOnly = false;
-    document.getElementById('cardholderName').readOnly = false;
-    document.getElementById('expiryDate').readOnly = false;
-    document.getElementById('cvv').readOnly = false;
     
     clearValidationMessages();
 }
 
 /**
- * Load saved credit card details into payment form
+ * Load saved credit card details to display as sender's card
  */
 function loadSavedCardDetails() {
     if (state.currentCard) {
-        // Mask the card number for display (show only last 4 digits)
+        // Display sender's card information
         const maskedCard = `**** **** **** ${state.currentCard.cardNumber.slice(-4)}`;
-        
-        // Populate form with saved card details
-        document.getElementById('cardNumber').value = maskedCard;
-        document.getElementById('cardholderName').value = state.currentCard.cardholderName || state.currentUser?.name || '';
-        document.getElementById('expiryDate').value = state.currentCard.expiryDate;
-        document.getElementById('cvv').value = '***'; // For security, don't display actual CVV
-        
-        // Make card field read-only since it's from registered account
-        document.getElementById('cardNumber').readOnly = true;
-        document.getElementById('cardholderName').readOnly = true;
-        document.getElementById('expiryDate').readOnly = true;
-        document.getElementById('cvv').readOnly = true;
-        
-        console.log('Saved card details loaded with name:', document.getElementById('cardholderName').value);
+        document.getElementById('senderCardNumber').textContent = maskedCard;
+        document.getElementById('senderCardHolder').textContent = state.currentCard.cardholderName || state.currentUser?.name || 'Your Card';
+        document.getElementById('senderCardExpiry').textContent = state.currentCard.expiryDate || '--/--';
+        console.log('Sender card details loaded');
     } else if (state.currentUser?.name) {
-        // Auto-fill cardholder name with user's name if no saved card
-        document.getElementById('cardholderName').value = state.currentUser.name;
-        document.getElementById('cardholderName').readOnly = false;
-        document.getElementById('cardNumber').readOnly = false;
-        document.getElementById('expiryDate').readOnly = false;
-        document.getElementById('cvv').readOnly = false;
-        console.log('Pre-filled cardholder name with user name:', state.currentUser.name);
+        // If no saved card, display user name
+        document.getElementById('senderCardHolder').textContent = state.currentUser.name;
+        document.getElementById('senderCardNumber').textContent = 'No card registered';
+        document.getElementById('senderCardExpiry').textContent = '--/--';
+        console.log('No saved card, displaying user info');
     }
 }
 
 /**
- * Submit payment using saved card or new card
+ * Submit payment using sender's saved card to send to receiver
  */
 function submitPayment() {
-    let cardNumber, cardholderName, expiryDate, cvv;
     const amount = document.getElementById('amount').value;
     const errorDiv = document.getElementById('paymentError');
 
@@ -107,39 +147,37 @@ function submitPayment() {
 
     let isValid = true;
 
-    // Use saved card if available
-    if (state.currentCard) {
-        cardNumber = state.currentCard.cardNumber;
-        cardholderName = state.currentCard.cardholderName;
-        expiryDate = state.currentCard.expiryDate;
-        cvv = state.currentCard.cvv;
-    } else {
-        // Get from form if no saved card
-        cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
-        cardholderName = document.getElementById('cardholderName').value;
-        expiryDate = document.getElementById('expiryDate').value;
-        cvv = document.getElementById('cvv').value;
+    // Check if sender has a saved card
+    if (!state.currentCard) {
+        showError('Please add a credit card to your account first', errorDiv);
+        return;
+    }
 
-        // Validation for new card entry
-        if (!validateCardNumber(cardNumber)) {
-            showValidationError('cardNumberMsg', 'Invalid card number');
-            isValid = false;
-        }
+    // Get receiver's card details from form
+    const receiverName = document.getElementById('receiverName').value.trim();
+    const receiverCardNumber = document.getElementById('receiverCardNumber').value.replace(/\s/g, '');
+    const receiverExpiryDate = document.getElementById('receiverExpiryDate').value;
+    const receiverCVV = document.getElementById('receiverCVV').value;
 
-        if (!cardholderName.trim()) {
-            showValidationError('cardholderMsg', 'Cardholder name is required');
-            isValid = false;
-        }
+    // Validation for receiver card entry
+    if (!receiverName) {
+        showValidationError('receiverNameMsg', 'Receiver name is required');
+        isValid = false;
+    }
 
-        if (!validateExpiryDate(expiryDate)) {
-            showValidationError('expiryMsg', 'Card is expired or invalid format');
-            isValid = false;
-        }
+    if (!validateCardNumber(receiverCardNumber)) {
+        showValidationError('receiverCardNumberMsg', 'Invalid card number');
+        isValid = false;
+    }
 
-        if (!validateCVV(cvv)) {
-            showValidationError('cvvMsg', 'Invalid CVV (3-4 digits)');
-            isValid = false;
-        }
+    if (!validateExpiryDate(receiverExpiryDate)) {
+        showValidationError('receiverExpiryMsg', 'Card is expired or invalid format');
+        isValid = false;
+    }
+
+    if (!validateCVV(receiverCVV)) {
+        showValidationError('receiverCVVMsg', 'Invalid CVV (3-4 digits)');
+        isValid = false;
     }
 
     if (!amount || amount < 0.01) {
@@ -151,14 +189,24 @@ function submitPayment() {
         return;
     }
 
-    // Process payment with saved/entered card
-    processPayment(cardNumber, cardholderName, expiryDate, cvv, amount);
+    // Process payment using sender's card to transfer to receiver
+    processPayment(
+        state.currentCard.cardNumber,
+        state.currentCard.cardholderName,
+        state.currentCard.expiryDate,
+        state.currentCard.cvv,
+        amount,
+        receiverName,
+        receiverCardNumber,
+        receiverExpiryDate,
+        receiverCVV
+    );
 }
 
 /**
- * Process payment transaction and link to card & account
+ * Process payment transaction with sender and receiver card details
  */
-function processPayment(cardNumber, cardholderName, expiryDate, cvv, amount) {
+function processPayment(senderCardNumber, senderCardholderName, senderExpiryDate, senderCVV, amount, receiverName, receiverCardNumber, receiverExpiryDate, receiverCVV) {
     showScreen('processingScreen');
     
     // Simulate processing
@@ -170,21 +218,25 @@ function processPayment(cardNumber, cardholderName, expiryDate, cvv, amount) {
         
         showTransactionResult(isSuccess, transactionId, amount, declineReason);
         
-        // Create transaction object linked to user and card
+        // Create transaction object with sender and receiver details
         const transaction = {
             id: transactionId,
             customerId: state.currentUser.id,
             userId: state.currentUser.id,
-            cardId: state.currentCard?.cardId || cardNumber.slice(-4),
-            cardNumber: cardNumber,
-            cardholderName: cardholderName,
+            senderCardId: state.currentCard?.cardId || senderCardNumber.slice(-4),
+            senderCardNumber: senderCardNumber,
+            senderCardholderName: senderCardholderName,
+            senderExpiryDate: senderExpiryDate,
+            receiverName: receiverName,
+            receiverCardNumber: receiverCardNumber,
+            receiverExpiryDate: receiverExpiryDate,
+            receiverCardId: receiverCardNumber.slice(-4),
             amount: parseFloat(amount),
             status: isSuccess ? 'success' : 'failed',
             date: new Date().toISOString().split('T')[0],
             timestamp: new Date().toISOString(),
             description: document.getElementById('description').value || 'Payment',
-            failureReason: declineReason,
-            expiryDate: expiryDate
+            failureReason: declineReason
         };
         
         // Add to transaction history
@@ -242,24 +294,6 @@ function showTransactionResult(isSuccess, transactionId, amount, reason) {
     document.getElementById('resultAmount').textContent = `$${parseFloat(amount).toFixed(2)}`;
     
     resultContent.classList.remove('hidden');
-    
-    document.getElementById('returnDashboardBtn').addEventListener('click', () => {
-        // Reset payment form
-        document.getElementById('paymentForm').reset?.() || document.querySelectorAll('#paymentScreen input, #paymentScreen textarea').forEach(el => el.value = '');
-        
-        // Reset UI state
-        document.getElementById('cardNumber').readOnly = false;
-        document.getElementById('cardholderName').readOnly = false;
-        document.getElementById('expiryDate').readOnly = false;
-        document.getElementById('cvv').readOnly = false;
-        resultContent.classList.add('hidden');
-        processingIndicator.classList.remove('hidden');
-        
-        // Clear decline reason display
-        document.getElementById('declineReasonRow').classList.add('hidden');
-        
-        showScreen('customerDashboard');
-    });
 }
 
 /**

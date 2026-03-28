@@ -244,31 +244,40 @@
 
                 <div class="payment-form">
                     <div class="form-section">
-                        <h3>Card Information</h3>
+                        <h3>Sender's Card (Your Card)</h3>
+                        <div id="senderCardDisplay" class="card-display">
+                            <p><strong>Card Number:</strong> <span id="senderCardNumber">**** **** **** ****</span></p>
+                            <p><strong>Cardholder:</strong> <span id="senderCardHolder">Your Card</span></p>
+                            <p><strong>Expiry:</strong> <span id="senderCardExpiry">--/--</span></p>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Receiver's Card Information</h3>
                         
                         <div class="form-group">
-                            <label for="cardNumber">Card Number</label>
-                            <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required>
-                            <div class="help-text">Demo: 4532123456789012</div>
-                            <span class="validation-msg" id="cardNumberMsg"></span>
+                            <label for="receiverName">Receiver Name</label>
+                            <input type="text" id="receiverName" placeholder="Jane Smith" required>
+                            <span class="validation-msg" id="receiverNameMsg"></span>
                         </div>
 
                         <div class="form-group">
-                            <label for="cardholderName">Cardholder Name</label>
-                            <input type="text" id="cardholderName" placeholder="Victor" required>
-                            <span class="validation-msg" id="cardholderMsg"></span>
+                            <label for="receiverCardNumber">Receiver Card Number</label>
+                            <input type="text" id="receiverCardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                            <div class="help-text">Demo: 4532123456789012</div>
+                            <span class="validation-msg" id="receiverCardNumberMsg"></span>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="expiryDate">Expiry Date</label>
-                                <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5" required>
-                                <span class="validation-msg" id="expiryMsg"></span>
+                                <label for="receiverExpiryDate">Card Expiry Date</label>
+                                <input type="text" id="receiverExpiryDate" placeholder="MM/YY" maxlength="5" required>
+                                <span class="validation-msg" id="receiverExpiryMsg"></span>
                             </div>
                             <div class="form-group">
-                                <label for="cvv">CVV</label>
-                                <input type="password" id="cvv" placeholder="***" maxlength="4" required>
-                                <span class="validation-msg" id="cvvMsg"></span>
+                                <label for="receiverCVV">CVV</label>
+                                <input type="password" id="receiverCVV" placeholder="***" maxlength="4" required>
+                                <span class="validation-msg" id="receiverCVVMsg"></span>
                             </div>
                         </div>
                     </div>
