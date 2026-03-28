@@ -137,11 +137,31 @@ async function checkEmailExists(email) {
 }
 
 /**
- * Validate card number
+ * Validate card number using Luhn algorithm
  */
 function validateCardNumber(cardNumber) {
     const cleaned = cardNumber.replace(/\D/g, '');
-    return cleaned.length >= 13 && cleaned.length <= 19;
+    if (cleaned.length < 13 || cleaned.length > 19) return false;
+    
+    // Luhn algorithm
+    let sum = 0;
+    let isEven = false;
+    
+    for (let i = cleaned.length - 1; i >= 0; i--) {
+        let digit = parseInt(cleaned.charAt(i), 10);
+        
+        if (isEven) {
+            digit *= 2;
+            if (digit > 9) {
+                digit -= 9;
+            }
+        }
+        
+        sum += digit;
+        isEven = !isEven;
+    }
+    
+    return sum % 10 === 0;
 }
 
 /**

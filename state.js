@@ -2,6 +2,7 @@
 const state = {
     currentRole: null,
     currentUser: null,
+    currentCard: null,  // Credit card information
     transactions: [],
     cards: [],
     merchants: [],

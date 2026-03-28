@@ -50,10 +50,12 @@ function updateTransactionTable() {
 
     filtered.forEach(trans => {
         const row = document.createElement('tr');
+        const maskedCard = trans.cardNumber ? `**** **** **** ${trans.cardNumber.slice(-4)}` : 'N/A';
         row.innerHTML = `
             <td>${trans.id}</td>
             <td>${trans.date}</td>
             <td>$${parseFloat(trans.amount).toFixed(2)}</td>
+            <td>${maskedCard}</td>
             <td><span class="status-badge ${trans.status}">${trans.status.charAt(0).toUpperCase() + trans.status.slice(1)}</span></td>
             <td><button class="btn btn-primary action-btn" onclick="viewTransactionDetail('${trans.id}')">View</button></td>
         `;
@@ -62,12 +64,25 @@ function updateTransactionTable() {
 }
 
 /**
- * View transaction details
+ * View transaction details with card information
  */
 function viewTransactionDetail(transactionId) {
     const trans = state.transactions.find(t => t.id === transactionId);
     if (trans) {
-        showAlert(`Transaction ${trans.id} - Amount: $${trans.amount} - Status: ${trans.status}`, 'info');
+        const maskedCard = trans.cardNumber ? `**** **** **** ${trans.cardNumber.slice(-4)}` : 'N/A';
+        const detailsHTML = `
+            <div style="text-align: left; margin: 15px 0;">
+                <p><strong>Transaction ID:</strong> ${trans.id}</p>
+                <p><strong>Date:</strong> ${trans.date}</p>
+                <p><strong>Amount:</strong> $${parseFloat(trans.amount).toFixed(2)}</p>
+                <p><strong>Card Used:</strong> ${maskedCard}</p>
+                <p><strong>Cardholder:</strong> ${trans.cardholderName || 'N/A'}</p>
+                <p><strong>Status:</strong> ${trans.status.toUpperCase()}</p>
+                <p><strong>Description:</strong> ${trans.description || 'N/A'}</p>
+                ${trans.failureReason ? `<p><strong>Failure Reason:</strong> ${trans.failureReason}</p>` : ''}
+            </div>
+        `;
+        showAlert(detailsHTML, 'info');
     }
 }
 

@@ -146,6 +146,17 @@ async function handleLogin() {
                     await db.ref(`users/${userId}`).update({
                         lastLogin: new Date().toISOString()
                     });
+
+                    // Load user's credit card information
+                    try {
+                        const cardSnapshot = await db.ref(`cards/${userId}`).get();
+                        if (cardSnapshot.exists()) {
+                            state.currentCard = cardSnapshot.val();
+                            console.log('Card loaded for user:', userId);
+                        }
+                    } catch (error) {
+                        console.warn('Error loading card:', error);
+                    }
                     
                     // Clear form
                     document.getElementById('username').value = '';
@@ -178,7 +189,7 @@ async function handleLogin() {
 }
 
 /**
- * Handle user registration
+ * Handle user registration with credit card
  */
 async function handleRegistration() {
     const fullName = document.getElementById('registerFullName').value.trim();
@@ -186,6 +197,13 @@ async function handleRegistration() {
     const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value.trim();
     const confirmPassword = document.getElementById('registerConfirmPassword').value.trim();
+    
+    // Credit card fields
+    const cardNumber = document.getElementById('regCardNumber').value.replace(/\s/g, '');
+    const cardholderName = document.getElementById('regCardholderName').value.trim();
+    const expiryDate = document.getElementById('regExpiryDate').value.trim();
+    const cvv = document.getElementById('regCVV').value.trim();
+    
     const role = state.currentRole;
     const errorDiv = document.getElementById('registerError');
     const successDiv = document.getElementById('registerSuccess');
@@ -218,6 +236,35 @@ async function handleRegistration() {
     const emailValidation = validateEmail(email);
     if (!emailValidation.valid) {
         showError(emailValidation.message, errorDiv);
+        return;
+    }
+
+    // ============ CREDIT CARD VALIDATION ============
+    clearValidationMessages();
+    let isCardValid = true;
+
+    if (!validateCardNumber(cardNumber)) {
+        showValidationError('regCardNumberMsg', 'Invalid card number (Luhn validation)');
+        isCardValid = false;
+    }
+
+    if (!cardholderName) {
+        showValidationError('regCardholderMsg', 'Cardholder name is required');
+        isCardValid = false;
+    }
+
+    if (!validateExpiryDate(expiryDate)) {
+        showValidationError('regExpiryMsg', 'Card is expired or invalid format (MM/YY)');
+        isCardValid = false;
+    }
+
+    if (!validateCVV(cvv)) {
+        showValidationError('regCVVMsg', 'Invalid CVV (3-4 digits)');
+        isCardValid = false;
+    }
+
+    if (!isCardValid) {
+        showError('Please correct the credit card information', errorDiv);
         return;
     }
 
@@ -265,8 +312,10 @@ async function handleRegistration() {
     }
 
     try {
-        // Create new user object
+        // Create new user object with card reference
         const userId = `${role}_${Date.now()}`;
+        const cardId = cardNumber.slice(-4); // Last 4 digits for easy identification
+        
         const newUser = {
             id: userId,
             username: username,
@@ -275,14 +324,32 @@ async function handleRegistration() {
             name: fullName,
             role: role,
             authMethod: 'email',
+            cardId: cardId, // Link to card
             createdAt: new Date().toISOString(),
             lastLogin: new Date().toISOString()
         };
 
+        // Create card object
+        const cardData = {
+            cardId: cardId,
+            cardNumber: cardNumber,
+            cardholderName: cardholderName,
+            expiryDate: expiryDate,
+            cvv: cvv,
+            userId: userId,
+            status: 'active',
+            createdAt: new Date().toISOString()
+        };
+
         // Save to Firebase
         if (db) {
+            // Save user
             await db.ref(`users/${userId}`).set(newUser);
-            console.log('User registered successfully:', userId);
+            
+            // Save card linked to user
+            await db.ref(`cards/${userId}`).set(cardData);
+            
+            console.log('User and card registered successfully:', userId);
 
             // Show success message
             successDiv.textContent = 'Account created successfully! Logging in...';
@@ -294,14 +361,19 @@ async function handleRegistration() {
             document.getElementById('registerEmail').value = '';
             document.getElementById('registerPassword').value = '';
             document.getElementById('registerConfirmPassword').value = '';
+            document.getElementById('regCardNumber').value = '';
+            document.getElementById('regCardholderName').value = '';
+            document.getElementById('regExpiryDate').value = '';
+            document.getElementById('regCVV').value = '';
 
             // Update password requirements display
             updatePasswordRequirements('');
 
             // Auto-login the user
             setTimeout(() => {
-                state.currentUser = newUser;
+                state.currentUser = { ...newUser };
                 state.currentRole = role;
+                state.currentCard = cardData;
                 
                 // Navigate to dashboard
                 loginSuccess(fullName, role);

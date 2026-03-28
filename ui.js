@@ -9,7 +9,38 @@ function showScreen(screenId) {
     if (screen) {
         screen.classList.add('active');
         state.currentScreen = screenId;
+        
+        // Load saved card details when payment screen is shown
+        if (screenId === 'paymentScreen' && state.currentCard) {
+            loadSavedCardDetails();
+        }
     }
+}
+
+/**
+ * Setup credit card field formatting for registration form
+ */
+function setupRegistrationCardFields() {
+    // Card number formatting
+    document.getElementById('regCardNumber')?.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\s/g, '');
+        let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+        e.target.value = formatted;
+    });
+
+    // Expiry date formatting
+    document.getElementById('regExpiryDate')?.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+        }
+        e.target.value = value;
+    });
+
+    // CVV only numbers
+    document.getElementById('regCVV')?.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
 }
 
 /**
@@ -61,6 +92,9 @@ function setupEventListeners() {
     document.getElementById('registerUsername')?.addEventListener('input', (e) => {
         updateUsernameValidation(e.target.value);
     });
+
+    // Register credit card field setup
+    setupRegistrationCardFields();
 
     // Dashboard navigation
     document.querySelectorAll('.menu-btn').forEach(btn => {

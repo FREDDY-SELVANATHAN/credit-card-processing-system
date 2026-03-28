@@ -4,6 +4,9 @@
  * Setup payment form functionality
  */
 function setupPaymentForm() {
+    // Load saved card details when payment screen is shown
+    document.addEventListener('showPaymentScreen', loadSavedCardDetails);
+    
     // Card number formatting
     document.getElementById('cardNumber')?.addEventListener('input', (e) => {
         let value = e.target.value.replace(/\s/g, '');
@@ -38,13 +41,34 @@ function setupPaymentForm() {
 }
 
 /**
- * Submit payment
+ * Load saved credit card details into payment form
+ */
+function loadSavedCardDetails() {
+    if (state.currentCard) {
+        // Mask the card number for display (show only last 4 digits)
+        const maskedCard = `**** **** **** ${state.currentCard.cardNumber.slice(-4)}`;
+        
+        // Populate form with saved card details
+        document.getElementById('cardNumber').value = maskedCard;
+        document.getElementById('cardholderName').value = state.currentCard.cardholderName;
+        document.getElementById('expiryDate').value = state.currentCard.expiryDate;
+        document.getElementById('cvv').value = '***'; // For security, don't display actual CVV
+        
+        // Make card field read-only since it's from registered account
+        document.getElementById('cardNumber').readOnly = true;
+        document.getElementById('cardholderName').readOnly = true;
+        document.getElementById('expiryDate').readOnly = true;
+        document.getElementById('cvv').readOnly = true;
+        
+        console.log('Saved card details loaded');
+    }
+}
+
+/**
+ * Submit payment using saved card or new card
  */
 function submitPayment() {
-    const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
-    const cardholderName = document.getElementById('cardholderName').value;
-    const expiryDate = document.getElementById('expiryDate').value;
-    const cvv = document.getElementById('cvv').value;
+    let cardNumber, cardholderName, expiryDate, cvv;
     const amount = document.getElementById('amount').value;
     const errorDiv = document.getElementById('paymentError');
 
@@ -54,25 +78,39 @@ function submitPayment() {
 
     let isValid = true;
 
-    // Validation
-    if (!validateCardNumber(cardNumber)) {
-        showValidationError('cardNumberMsg', 'Invalid card number');
-        isValid = false;
-    }
+    // Use saved card if available
+    if (state.currentCard) {
+        cardNumber = state.currentCard.cardNumber;
+        cardholderName = state.currentCard.cardholderName;
+        expiryDate = state.currentCard.expiryDate;
+        cvv = state.currentCard.cvv;
+    } else {
+        // Get from form if no saved card
+        cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+        cardholderName = document.getElementById('cardholderName').value;
+        expiryDate = document.getElementById('expiryDate').value;
+        cvv = document.getElementById('cvv').value;
 
-    if (!cardholderName.trim()) {
-        showValidationError('cardholderMsg', 'Cardholder name is required');
-        isValid = false;
-    }
+        // Validation for new card entry
+        if (!validateCardNumber(cardNumber)) {
+            showValidationError('cardNumberMsg', 'Invalid card number');
+            isValid = false;
+        }
 
-    if (!validateExpiryDate(expiryDate)) {
-        showValidationError('expiryMsg', 'Card is expired or invalid format');
-        isValid = false;
-    }
+        if (!cardholderName.trim()) {
+            showValidationError('cardholderMsg', 'Cardholder name is required');
+            isValid = false;
+        }
 
-    if (!validateCVV(cvv)) {
-        showValidationError('cvvMsg', 'Invalid CVV (3-4 digits)');
-        isValid = false;
+        if (!validateExpiryDate(expiryDate)) {
+            showValidationError('expiryMsg', 'Card is expired or invalid format');
+            isValid = false;
+        }
+
+        if (!validateCVV(cvv)) {
+            showValidationError('cvvMsg', 'Invalid CVV (3-4 digits)');
+            isValid = false;
+        }
     }
 
     if (!amount || amount < 0.01) {
@@ -84,12 +122,12 @@ function submitPayment() {
         return;
     }
 
-    // Process payment
+    // Process payment with saved/entered card
     processPayment(cardNumber, cardholderName, expiryDate, cvv, amount);
 }
 
 /**
- * Process payment transaction
+ * Process payment transaction and link to card & account
  */
 function processPayment(cardNumber, cardholderName, expiryDate, cvv, amount) {
     showScreen('processingScreen');
@@ -99,33 +137,43 @@ function processPayment(cardNumber, cardholderName, expiryDate, cvv, amount) {
         const transactionId = `TXN-${String(Math.floor(Math.random() * 999999) + 1).padStart(6, '0')}`;
         const isSuccess = Math.random() > 0.2; // 80% success rate
         const reasons = ['Insufficient funds', 'Expired card', 'Card blocked', 'Invalid CVV'];
+        const declineReason = isSuccess ? null : reasons[Math.floor(Math.random() * reasons.length)];
         
-        showTransactionResult(isSuccess, transactionId, amount, isSuccess ? null : reasons[Math.floor(Math.random() * reasons.length)]);
+        showTransactionResult(isSuccess, transactionId, amount, declineReason);
         
-        // Create transaction object
+        // Create transaction object linked to user and card
         const transaction = {
             id: transactionId,
             customerId: state.currentUser.id,
-            amount: amount,
+            userId: state.currentUser.id,
+            cardId: state.currentCard?.cardId || cardNumber.slice(-4),
+            cardNumber: cardNumber,
+            cardholderName: cardholderName,
+            amount: parseFloat(amount),
             status: isSuccess ? 'success' : 'failed',
             date: new Date().toISOString().split('T')[0],
+            timestamp: new Date().toISOString(),
             description: document.getElementById('description').value || 'Payment',
-            failureReason: isSuccess ? null : reasons[Math.floor(Math.random() * reasons.length)],
-            cardNumber: cardNumber,
-            cardholderName: cardholderName
+            failureReason: declineReason,
+            expiryDate: expiryDate
         };
         
         // Add to transaction history
         state.transactions.unshift(transaction);
         
-        // Save transaction to Firebase
+        // Save transaction to Firebase with full details
         saveTransaction(transaction);
         
-        // Update card balance in Firebase
-        updateCard(cardNumber, {
-            balance: (Math.random() * 5000).toFixed(2),
-            lastTransaction: new Date().toISOString()
-        });
+        // Update card last used timestamp
+        if (state.currentCard) {
+            updateCard(state.currentCard.userId, {
+                lastTransaction: new Date().toISOString(),
+                lastAmount: amount,
+                lastStatus: isSuccess ? 'success' : 'failed'
+            });
+        }
+        
+        console.log('Transaction created and saved:', transactionId);
     }, 2000);
 }
 

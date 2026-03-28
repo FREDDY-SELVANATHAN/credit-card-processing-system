@@ -137,6 +137,37 @@
                                 <div id="confirmPasswordMsg" class="validation-message"></div>
                             </div>
 
+                            <div class="form-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                                <h3>Credit Card Details</h3>
+                                <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">Add your credit card for secure transactions</p>
+                                
+                                <div class="form-group">
+                                    <label for="regCardNumber">Card Number</label>
+                                    <input type="text" id="regCardNumber" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                                    <div class="help-text">E.g., 4532123456789012</div>
+                                    <span class="validation-msg" id="regCardNumberMsg"></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="regCardholderName">Cardholder Name</label>
+                                    <input type="text" id="regCardholderName" placeholder="Full name as on card" required>
+                                    <span class="validation-msg" id="regCardholderMsg"></span>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="regExpiryDate">Expiry Date</label>
+                                        <input type="text" id="regExpiryDate" placeholder="MM/YY" maxlength="5" required>
+                                        <span class="validation-msg" id="regExpiryMsg"></span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="regCVV">CVV</label>
+                                        <input type="password" id="regCVV" placeholder="***" maxlength="4" required>
+                                        <span class="validation-msg" id="regCVVMsg"></span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <button id="registerBtn" class="btn btn-primary btn-block">Create Account</button>
 
                             <div id="registerError" class="error-message"></div>
@@ -328,6 +359,7 @@
                                 <th>Transaction ID</th>
                                 <th>Date</th>
                                 <th>Amount</th>
+                                <th>Card Used</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
