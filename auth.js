@@ -60,32 +60,42 @@ async function handleLogin() {
     errorDiv.textContent = '';
     errorDiv.classList.remove('show');
 
+    console.log('Login attempt:', { role: role, username: usernameOrEmail });
+
     if (!role) {
         showError('Please select a role', errorDiv);
+        console.warn('No role selected');
         return;
     }
 
     if (!usernameOrEmail || !password) {
         showError('Please enter username/email and password', errorDiv);
+        console.warn('Missing username or password');
         return;
     }
 
     try {
         // Check demo users first (for demo purposes)
         const demoUser = demoUsers[role];
-        if (usernameOrEmail === demoUser.username && password === demoUser.password) {
+        if (demoUser && usernameOrEmail === demoUser.username && password === demoUser.password) {
             state.currentUser = { ...demoUser, role };
             
-            // Save login to Firebase
-            saveUser(demoUser.id, {
-                ...demoUser,
-                role,
-                lastLogin: new Date().toISOString()
-            });
+            // Save login to Firebase (async, but don't block)
+            try {
+                await saveUser(demoUser.id, {
+                    ...demoUser,
+                    role,
+                    lastLogin: new Date().toISOString()
+                });
+            } catch (error) {
+                console.warn('Could not save to Firebase, but proceeding with login:', error);
+            }
             
             // Clear form
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+            
+            console.log('Demo user logged in:', role);
             
             // Navigate to appropriate dashboard
             loginSuccess(demoUser.name, role);
@@ -393,32 +403,61 @@ async function handleRegistration() {
  * Handle successful login
  */
 function loginSuccess(userName, role) {
-    if (role === 'customer') {
-        document.getElementById('welcomeName').textContent = userName;
-        document.getElementById('customerName').textContent = userName;
-        
-        // Load customer's transactions
-        updateTransactionTable();
-        
-        // Load customer's card details
-        updateCardDetails();
-        
-        showScreen('customerDashboard');
-    } else if (role === 'merchant') {
-        document.getElementById('merchantWelcomeName').textContent = userName;
-        document.getElementById('merchantName').textContent = userName;
-        
-        // Load merchant's transactions
-        updateMerchantTransactionTable();
-        
-        showScreen('merchantDashboard');
-    } else if (role === 'admin') {
-        document.getElementById('adminName').textContent = userName;
-        
-        // Load admin data
-        updateAdminDashboard();
-        
-        showScreen('adminDashboard');
+    try {
+        if (role === 'customer') {
+            const welcomeEl = document.getElementById('welcomeName');
+            const customerNameEl = document.getElementById('customerName');
+            
+            if (welcomeEl) welcomeEl.textContent = userName;
+            if (customerNameEl) customerNameEl.textContent = userName;
+            
+            // Load customer's transactions
+            try {
+                updateTransactionTable();
+            } catch (error) {
+                console.warn('Error updating transaction table:', error);
+            }
+            
+            // Load customer's card details
+            try {
+                updateCardDetails();
+            } catch (error) {
+                console.warn('Error updating card details:', error);
+            }
+            
+            showScreen('customerDashboard');
+        } else if (role === 'merchant') {
+            const merchantWelcomeEl = document.getElementById('merchantWelcomeName');
+            const merchantNameEl = document.getElementById('merchantName');
+            
+            if (merchantWelcomeEl) merchantWelcomeEl.textContent = userName;
+            if (merchantNameEl) merchantNameEl.textContent = userName;
+            
+            // Load merchant's transactions
+            try {
+                updateMerchantTransactionTable();
+            } catch (error) {
+                console.warn('Error updating merchant transaction table:', error);
+            }
+            
+            showScreen('merchantDashboard');
+        } else if (role === 'admin') {
+            const adminNameEl = document.getElementById('adminName');
+            
+            if (adminNameEl) adminNameEl.textContent = userName;
+            
+            // Load admin data
+            try {
+                updateAdminDashboard();
+            } catch (error) {
+                console.warn('Error updating admin dashboard:', error);
+            }
+            
+            showScreen('adminDashboard');
+        }
+    } catch (error) {
+        console.error('Error in loginSuccess:', error);
+        showAlert('Login processed, but encountered an error loading dashboard. Please refresh.', 'error');
     }
 }
 

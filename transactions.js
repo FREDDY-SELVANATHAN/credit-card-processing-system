@@ -30,6 +30,13 @@ function setupTransactionHistory() {
 function updateTransactionTable() {
     const tbody = document.getElementById('transactionTableBody');
     const noMsg = document.getElementById('noTransactionsMsg');
+    
+    // Gracefully handle missing elements
+    if (!tbody || !noMsg) {
+        console.warn('Transaction table elements not found');
+        return;
+    }
+    
     const statusFilter = document.getElementById('filterStatus')?.value || '';
     const dateFilter = document.getElementById('filterDate')?.value || '';
 

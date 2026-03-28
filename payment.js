@@ -309,7 +309,7 @@ function maskCardNumber(cardNumber) {
 function updateCardDetails() {
     if (!state.currentCard) {
         // If no saved card yet, use user info
-        if (state.currentUser?.name) {
+        if (state.currentUser?.name && document.getElementById('displayCardHolder')) {
             document.getElementById('displayCardHolder').textContent = state.currentUser.name.toUpperCase();
         }
         return;
@@ -318,12 +318,20 @@ function updateCardDetails() {
     const card = state.currentCard;
     const cardholderName = card.cardholderName || state.currentUser?.name || 'CARDHOLDER';
     
-    document.getElementById('displayCardNumber').textContent = maskCardNumber(card.cardNumber);
-    document.getElementById('displayCardHolder').textContent = cardholderName.toUpperCase();
-    document.getElementById('displayExpiry').textContent = card.expiryDate || '00/00';
-    document.getElementById('creditLimit').textContent = `$${card.limit ? card.limit.toFixed(2) : '0.00'}`;
-    document.getElementById('availableCredit').textContent = `$${card.availableCredit ? card.availableCredit.toFixed(2) : '0.00'}`;
-    document.getElementById('currentBalance').textContent = `$${card.balance ? card.balance.toFixed(2) : '0.00'}`;
+    // Update card details with null checks
+    const displayCardNumber = document.getElementById('displayCardNumber');
+    const displayCardHolder = document.getElementById('displayCardHolder');
+    const displayExpiry = document.getElementById('displayExpiry');
+    const creditLimit = document.getElementById('creditLimit');
+    const availableCredit = document.getElementById('availableCredit');
+    const currentBalance = document.getElementById('currentBalance');
+    
+    if (displayCardNumber) displayCardNumber.textContent = maskCardNumber(card.cardNumber);
+    if (displayCardHolder) displayCardHolder.textContent = cardholderName.toUpperCase();
+    if (displayExpiry) displayExpiry.textContent = card.expiryDate || '00/00';
+    if (creditLimit) creditLimit.textContent = `$${card.limit ? card.limit.toFixed(2) : '0.00'}`;
+    if (availableCredit) availableCredit.textContent = `$${card.availableCredit ? card.availableCredit.toFixed(2) : '0.00'}`;
+    if (currentBalance) currentBalance.textContent = `$${card.balance ? card.balance.toFixed(2) : '0.00'}`;
     
     console.log('Card details updated with cardholder:', cardholderName);
 }
