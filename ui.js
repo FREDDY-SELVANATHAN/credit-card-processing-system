@@ -14,6 +14,26 @@ function showScreen(screenId) {
         if (screenId === 'paymentScreen' && state.currentCard) {
             loadSavedCardDetails();
         }
+        
+        // Refresh admin dashboard data when returning
+        if (screenId === 'adminDashboard') {
+            updateAdminDashboard();
+        }
+        
+        // Refresh merchant transaction table when returning
+        if (screenId === 'merchantDashboard') {
+            updateMerchantTransactionTable();
+        }
+        
+        // Update card details when showing card details screen
+        if (screenId === 'cardDetails') {
+            updateCardDetails();
+        }
+        
+        // Update transaction history when showing transaction screen
+        if (screenId === 'transactionHistory') {
+            updateTransactionTable();
+        }
     }
 }
 

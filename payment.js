@@ -9,35 +9,53 @@ function setupPaymentForm() {
     
     // Card number formatting
     document.getElementById('cardNumber')?.addEventListener('input', (e) => {
-        let value = e.target.value.replace(/\s/g, '');
-        let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
-        e.target.value = formatted;
+        if (!e.target.readOnly) {
+            let value = e.target.value.replace(/\s/g, '');
+            let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formatted;
+        }
     });
 
     // Expiry date formatting
     document.getElementById('expiryDate')?.addEventListener('input', (e) => {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length >= 2) {
-            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+        if (!e.target.readOnly) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + '/' + value.slice(2, 4);
+            }
+            e.target.value = value;
         }
-        e.target.value = value;
     });
 
     // CVV only numbers
     document.getElementById('cvv')?.addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/\D/g, '');
+        if (!e.target.readOnly) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        }
     });
 
     document.getElementById('submitPaymentBtn')?.addEventListener('click', submitPayment);
-    document.getElementById('resetPaymentBtn')?.addEventListener('click', () => {
-        document.getElementById('cardNumber').value = '';
-        document.getElementById('cardholderName').value = '';
-        document.getElementById('expiryDate').value = '';
-        document.getElementById('cvv').value = '';
-        document.getElementById('amount').value = '';
-        document.getElementById('description').value = '';
-        clearValidationMessages();
-    });
+    document.getElementById('resetPaymentBtn')?.addEventListener('click', resetPaymentForm);
+}
+
+/**
+ * Reset payment form
+ */
+function resetPaymentForm() {
+    document.getElementById('cardNumber').value = '';
+    document.getElementById('cardholderName').value = '';
+    document.getElementById('expiryDate').value = '';
+    document.getElementById('cvv').value = '';
+    document.getElementById('amount').value = '';
+    document.getElementById('description').value = '';
+    
+    // Reset readonly state
+    document.getElementById('cardNumber').readOnly = false;
+    document.getElementById('cardholderName').readOnly = false;
+    document.getElementById('expiryDate').readOnly = false;
+    document.getElementById('cvv').readOnly = false;
+    
+    clearValidationMessages();
 }
 
 /**
@@ -223,14 +241,21 @@ function showTransactionResult(isSuccess, transactionId, amount, reason) {
     resultContent.classList.remove('hidden');
     
     document.getElementById('returnDashboardBtn').addEventListener('click', () => {
-        showScreen('customerDashboard');
-        document.getElementById('cardNumber').value = '';
-        document.getElementById('cardholderName').value = '';
-        document.getElementById('expiryDate').value = '';
-        document.getElementById('cvv').value = '';
-        document.getElementById('amount').value = '';
+        // Reset payment form
+        document.getElementById('paymentForm').reset?.() || document.querySelectorAll('#paymentScreen input, #paymentScreen textarea').forEach(el => el.value = '');
+        
+        // Reset UI state
+        document.getElementById('cardNumber').readOnly = false;
+        document.getElementById('cardholderName').readOnly = false;
+        document.getElementById('expiryDate').readOnly = false;
+        document.getElementById('cvv').readOnly = false;
         resultContent.classList.add('hidden');
         processingIndicator.classList.remove('hidden');
+        
+        // Clear decline reason display
+        document.getElementById('declineReasonRow').classList.add('hidden');
+        
+        showScreen('customerDashboard');
     });
 }
 

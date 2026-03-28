@@ -396,14 +396,28 @@ function loginSuccess(userName, role) {
     if (role === 'customer') {
         document.getElementById('welcomeName').textContent = userName;
         document.getElementById('customerName').textContent = userName;
+        
+        // Load customer's transactions
+        updateTransactionTable();
+        
+        // Load customer's card details
+        updateCardDetails();
+        
         showScreen('customerDashboard');
     } else if (role === 'merchant') {
         document.getElementById('merchantWelcomeName').textContent = userName;
         document.getElementById('merchantName').textContent = userName;
+        
+        // Load merchant's transactions
+        updateMerchantTransactionTable();
+        
         showScreen('merchantDashboard');
     } else if (role === 'admin') {
         document.getElementById('adminName').textContent = userName;
+        
+        // Load admin data
         updateAdminDashboard();
+        
         showScreen('adminDashboard');
     }
 }

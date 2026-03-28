@@ -10,6 +10,8 @@ function setupUserManagement() {
         updateUserTable();
     });
     document.getElementById('userMgmtBackBtn')?.addEventListener('click', () => {
+        // Refresh admin dashboard when going back
+        updateAdminDashboard();
         showScreen('adminDashboard');
     });
 }

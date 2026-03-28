@@ -8,6 +8,18 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMockData();
     initializeGoogleSignIn();
     startRealTimeSyncListeners();
+    
+    // Initialize all payment and transaction features
+    setupPaymentForm();
+    setupMerchantPaymentForm();
+    setupTransactionHistory();
+    setupMerchantTransactions();
+    setupAdminTransactions();
+    setupUserManagement();
+    setupCardManagement();
+    setupReports();
+    setupAlerts();
+    
     // Monitor auth state
     if (auth) {
         auth.onAuthStateChanged((user) => {
@@ -46,12 +58,18 @@ function startRealTimeSyncListeners() {
         if (document.getElementById('transactionTableBody')) {
             updateTransactionTable();
         }
+        if (document.getElementById('adminTransTableBody')) {
+            updateAdminTransactionTable();
+        }
+        if (document.getElementById('merchantTransTableBody')) {
+            updateMerchantTransactionTable();
+        }
     });
     
     // Listen to card updates
     listenToCards((cards) => {
         state.cards = cards;
-        if (document.getElementById('cardTableBody')) {
+        if (document.getElementById('cardsTableBody')) {
             updateCardTable();
         }
     });
@@ -64,16 +82,3 @@ function startRealTimeSyncListeners() {
         }
     });
 }
-
-/**
- * Initialize all payment and transaction features
- */
-setupPaymentForm();
-setupMerchantPaymentForm();
-setupTransactionHistory();
-setupMerchantTransactions();
-setupAdminTransactions();
-setupUserManagement();
-setupCardManagement();
-setupReports();
-setupAlerts();

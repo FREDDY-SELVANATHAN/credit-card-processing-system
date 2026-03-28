@@ -5,15 +5,21 @@
  */
 function setupMerchantPaymentForm() {
     document.getElementById('submitMerchantPaymentBtn')?.addEventListener('click', submitMerchantPayment);
-    document.getElementById('resetMerchantPaymentBtn')?.addEventListener('click', () => {
-        document.getElementById('merchantCustomerId').value = '';
-        document.getElementById('merchantCustomerName').value = '';
-        document.getElementById('merchantAmount').value = '';
-        document.getElementById('merchantDescription').value = '';
-        document.getElementById('merchantInvoiceId').value = '';
-        document.getElementById('merchantPaymentError').textContent = '';
-        document.getElementById('merchantPaymentError').classList.remove('show');
-    });
+    document.getElementById('resetMerchantPaymentBtn')?.addEventListener('click', resetMerchantPaymentForm);
+}
+
+/**
+ * Reset merchant payment form
+ */
+function resetMerchantPaymentForm() {
+    document.getElementById('merchantCustomerId').value = '';
+    document.getElementById('merchantCustomerName').value = '';
+    document.getElementById('merchantAmount').value = '';
+    document.getElementById('merchantDescription').value = '';
+    document.getElementById('merchantInvoiceId').value = '';
+    document.getElementById('merchantPaymentError').textContent = '';
+    document.getElementById('merchantPaymentError').classList.remove('show');
+    clearValidationMessages();
 }
 
 /**
@@ -78,6 +84,11 @@ function setupMerchantTransactions() {
  * Update merchant transaction table
  */
 function updateMerchantTransactionTable() {
+    if (!state.currentUser) {
+        console.warn('No current user set for merchant');
+        return;
+    }
+    
     const tbody = document.getElementById('merchantTransTableBody');
     const noMsg = document.getElementById('noMerchantTransMsg');
     const statusFilter = document.getElementById('merchantFilterStatus')?.value || '';

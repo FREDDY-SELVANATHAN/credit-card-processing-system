@@ -191,7 +191,9 @@ function showValidationError(elementId, message) {
     const el = document.getElementById(elementId);
     if (el) {
         el.textContent = message;
-        el.classList.add('error');
+        el.classList.add('error', 'show');
+        el.style.display = 'block';
+        el.style.color = 'var(--color-danger, #dc3545)';
     }
 }
 
@@ -199,8 +201,14 @@ function showValidationError(elementId, message) {
  * Clear all validation messages
  */
 function clearValidationMessages() {
-    document.querySelectorAll('.validation-msg').forEach(el => {
+    document.querySelectorAll('.validation-msg, .validation-message').forEach(el => {
         el.textContent = '';
+        el.classList.remove('error', 'show');
+        el.style.display = 'none';
+    });
+    
+    // Also clear form validation styling
+    document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea, select').forEach(el => {
         el.classList.remove('error');
     });
 }
