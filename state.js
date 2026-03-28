@@ -5,6 +5,7 @@ const state = {
     currentCard: null,  // Credit card information
     transactions: [],
     cards: [],
+    users: [],         // All users for real-time sync
     merchants: [],
     currentScreen: 'loginScreen'
 };

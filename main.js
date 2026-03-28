@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadMockData();
     initializeGoogleSignIn();
+    startRealTimeSyncListeners();
     // Monitor auth state
     if (auth) {
         auth.onAuthStateChanged((user) => {
@@ -33,6 +34,35 @@ function loadMockData() {
     // Uncomment the line below after fixing Firebase rules
     // syncMockDataWithFirebase();
     console.log('Mock data loaded locally. Firebase sync disabled until permissions are fixed.');
+}
+
+/**
+ * Start real-time data synchronization listeners
+ */
+function startRealTimeSyncListeners() {
+    // Listen to transaction updates
+    listenToTransactions((transactions) => {
+        state.transactions = transactions;
+        if (document.getElementById('transactionTableBody')) {
+            updateTransactionTable();
+        }
+    });
+    
+    // Listen to card updates
+    listenToCards((cards) => {
+        state.cards = cards;
+        if (document.getElementById('cardTableBody')) {
+            updateCardTable();
+        }
+    });
+    
+    // Listen to user updates
+    listenToUsers((users) => {
+        state.users = users;
+        if (document.getElementById('userTableBody')) {
+            updateUserTable();
+        }
+    });
 }
 
 /**

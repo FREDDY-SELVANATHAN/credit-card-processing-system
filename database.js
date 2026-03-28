@@ -170,10 +170,60 @@ function listenToTransactions(callback) {
         const transactions = [];
         if (snapshot.exists()) {
             snapshot.forEach(child => {
-                transactions.push(child.val());
+                transactions.push({
+                    id: child.key,
+                    ...child.val()
+                });
             });
         }
         callback(transactions);
+        console.log('Transactions synced from Firebase:', transactions.length);
+    });
+}
+
+/**
+ * Listen to real-time card updates
+ */
+function listenToCards(callback) {
+    if (!db) {
+        console.error('Firebase not initialized');
+        return;
+    }
+    db.ref('cards').on('value', (snapshot) => {
+        const cards = [];
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                cards.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+        }
+        callback(cards);
+        console.log('Cards synced from Firebase:', cards.length);
+    });
+}
+
+/**
+ * Listen to real-time user updates
+ */
+function listenToUsers(callback) {
+    if (!db) {
+        console.error('Firebase not initialized');
+        return;
+    }
+    db.ref('users').on('value', (snapshot) => {
+        const users = [];
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                users.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+        }
+        callback(users);
+        console.log('Users synced from Firebase:', users.length);
     });
 }
 
