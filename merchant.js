@@ -30,6 +30,7 @@ function submitMerchantPayment() {
     const customerName = document.getElementById('merchantCustomerName').value.trim();
     const amount = document.getElementById('merchantAmount').value;
     const description = document.getElementById('merchantDescription').value.trim();
+    const invoiceId = document.getElementById('merchantInvoiceId').value.trim();
     const errorDiv = document.getElementById('merchantPaymentError');
 
     errorDiv.textContent = '';
@@ -47,24 +48,43 @@ function submitMerchantPayment() {
 
     // Create merchant transaction
     const requestId = `REQ-${String(Math.floor(Math.random() * 999999) + 1).padStart(6, '0')}`;
-    state.transactions.unshift({
+    const transaction = {
         id: requestId,
         customerId: customerId,
+        customerName: customerName,
         merchantId: state.currentUser.id,
-        amount: amount,
+        merchantName: state.currentUser.name,
+        amount: parseFloat(amount),
         status: 'pending',
         date: new Date().toISOString().split('T')[0],
-        description: description
+        description: description,
+        invoiceId: invoiceId || null,
+        createdAt: new Date().toISOString()
+    };
+    
+    // Add to local state
+    state.transactions.unshift(transaction);
+    
+    // IMPORTANT: Save to Firebase so customer can see it
+    console.log('💾 Saving merchant payment request:', requestId);
+    console.log('   - Merchant:', state.currentUser.id);
+    console.log('   - Customer:', customerId);
+    console.log('   - Amount:', amount);
+    saveTransaction(transaction).then(success => {
+        if (success) {
+            console.log('✓ Payment request saved to Firebase:', requestId);
+        } else {
+            console.warn('⚠ Failed to save to Firebase, but saved locally');
+        }
     });
 
     showAlert(`Payment request ${requestId} created successfully!`, 'success');
     
+    // Immediately refresh merchant's transaction list
+    updateMerchantTransactionTable();
+    
     // Reset form
-    document.getElementById('merchantCustomerId').value = '';
-    document.getElementById('merchantCustomerName').value = '';
-    document.getElementById('merchantAmount').value = '';
-    document.getElementById('merchantDescription').value = '';
-    document.getElementById('merchantInvoiceId').value = '';
+    resetMerchantPaymentForm();
 }
 
 /**

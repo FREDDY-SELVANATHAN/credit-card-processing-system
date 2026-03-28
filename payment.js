@@ -323,17 +323,28 @@ function updatePendingPaymentsTable() {
     const noMsg = document.getElementById('noPendingMsg');
 
     if (!state.currentUser) {
+        console.warn('No current user for pending payments');
         noMsg.style.display = 'block';
         tbody.innerHTML = '';
         return;
     }
 
+    console.log('Looking for pending requests for customer:', state.currentUser.id);
+    console.log('Total transactions in state:', state.transactions.length);
+
     // Get all pending requests for this customer
-    let pendingRequests = state.transactions.filter(t => 
-        t.customerId === state.currentUser.id && 
-        t.status === 'pending' &&
-        t.merchantId  // Must have a merchant ID (from merchant request)
-    );
+    let pendingRequests = state.transactions.filter(t => {
+        const isForThisCustomer = t.customerId === state.currentUser.id;
+        const isPending = t.status === 'pending';
+        const hasMerchant = !!t.merchantId;
+        
+        if (isForThisCustomer && isPending && hasMerchant) {
+            console.log(`✓ Found: ${t.id} - ${t.description} ($${t.amount})`);
+        }
+        return isForThisCustomer && isPending && hasMerchant;
+    });
+
+    console.log('Pending requests found:', pendingRequests.length);
 
     tbody.innerHTML = '';
 
@@ -345,9 +356,9 @@ function updatePendingPaymentsTable() {
     noMsg.style.display = 'none';
 
     pendingRequests.forEach(request => {
-        // Find merchant name
+        // Find merchant name from state or use stored merchant name
         const merchant = state.merchants.find(m => m.id === request.merchantId);
-        const merchantName = merchant?.name || request.merchantId || 'Unknown Merchant';
+        const merchantName = request.merchantName || merchant?.name || request.merchantId || 'Unknown Merchant';
         
         const row = document.createElement('tr');
         row.innerHTML = `

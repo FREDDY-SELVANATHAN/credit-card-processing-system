@@ -4,10 +4,10 @@
  * Initialize application when DOM is ready
  */
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('✓ App initializing...');
     setupEventListeners();
     loadMockData();
     initializeGoogleSignIn();
-    startRealTimeSyncListeners();
     
     // Initialize all payment and transaction features
     setupPaymentForm();
@@ -20,11 +20,20 @@ document.addEventListener('DOMContentLoaded', () => {
     setupReports();
     setupAlerts();
     
+    // Start listening to Firebase in real-time
+    console.log('✓ Starting real-time sync listeners...');
+    startRealTimeSyncListeners();
+    
+    // Wait a moment for listeners to initialize
+    setTimeout(() => {
+        console.log('✓ App ready. Transactions loaded:', state.transactions.length);
+    }, 500);
+    
     // Monitor auth state
     if (auth) {
         auth.onAuthStateChanged((user) => {
             if (user) {
-                console.log('User authenticated:', user.email);
+                console.log('✓ User authenticated:', user.email);
             } else {
                 console.log('User not authenticated');
             }
