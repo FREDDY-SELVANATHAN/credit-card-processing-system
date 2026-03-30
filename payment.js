@@ -34,8 +34,17 @@ function setupPaymentForm() {
         }
     });
 
-    document.getElementById('submitPaymentBtn')?.addEventListener('click', submitPayment);
-    document.getElementById('resetPaymentBtn')?.addEventListener('click', resetPaymentForm);
+    const submitBtn = document.getElementById('submitPaymentBtn');
+    const resetBtn = document.getElementById('resetPaymentBtn');
+    
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitPayment);
+        console.log('✓ Submit payment button listener attached');
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetPaymentForm);
+    }
     
     // Setup return to dashboard button - ONLY ONCE
     setupReturnDashboardBtn();
@@ -95,8 +104,6 @@ function setupReturnDashboardBtn() {
         
         // Navigate to dashboard
         showScreen('customerDashboard');
-    });
-}
     });
 }
 
@@ -467,17 +474,27 @@ async function processPendingPayment(requestId, request) {
                     state.transactions[requestIndex].status = 'success';
                     state.transactions[requestIndex].paidDate = new Date().toISOString().split('T')[0];
                     state.transactions[requestIndex].paymentId = transactionId;
+                    state.transactions[requestIndex].paidWith = state.currentCard.cardNumber;
+                    state.transactions[requestIndex].paidByName = state.currentCard.cardholderName;
                 } else {
                     state.transactions[requestIndex].status = 'failed';
                     state.transactions[requestIndex].failureReason = declineReason;
                 }
+                
+                // Update timestamp
+                state.transactions[requestIndex].updatedAt = new Date().toISOString();
             }
 
+            // Create complete transaction object with all details for saving
+            const updatedRequest = state.transactions[requestIndex];
+            
             // Save updated transaction to Firebase
-            if (requestIndex >= 0 && state.transactions[requestIndex]) {
-                const saved = await saveTransaction(state.transactions[requestIndex]);
+            if (updatedRequest) {
+                const saved = await saveTransaction(updatedRequest);
                 if (!saved) {
                     console.error('Failed to save transaction to Firebase');
+                } else {
+                    console.log('✓ Transaction saved to Firebase:', requestId);
                 }
             }
 

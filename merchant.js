@@ -4,8 +4,17 @@
  * Setup merchant payment form
  */
 function setupMerchantPaymentForm() {
-    document.getElementById('submitMerchantPaymentBtn')?.addEventListener('click', submitMerchantPayment);
-    document.getElementById('resetMerchantPaymentBtn')?.addEventListener('click', resetMerchantPaymentForm);
+    const submitBtn = document.getElementById('submitMerchantPaymentBtn');
+    const resetBtn = document.getElementById('resetMerchantPaymentBtn');
+    
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitMerchantPayment);
+        console.log('✓ Submit merchant payment button listener attached');
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetMerchantPaymentForm);
+    }
 }
 
 /**
